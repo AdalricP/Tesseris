@@ -1,0 +1,19 @@
+# Build directories
+**/build/
+**/Debug/
+**/Release/
+
+# VS Code settings
+.vscode/
+
+# Project specific files
+project_outline.md
+
+# MacOS files
+.DS_Store
+
+# Object files
+*.o
+
+# Debug files
+*.dSYM/
