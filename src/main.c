@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include "vulkan_device.h"
 
 #ifdef __APPLE__
 #define PLATFORM_MACOS
@@ -22,30 +23,6 @@
 #define BACKGROUND_B 112
 
 int initializeVulkan(SDL_Window* window, VkInstance* vulkanInstance);
-void enumeratePhysicalDevices(VkInstance instance);
-
-void enumeratePhysicalDevices(VkInstance instance) {
-    uint32_t deviceCount = 0;
-    vkEnumeratePhysicalDevices(instance, &deviceCount, NULL);
-    
-    if (deviceCount == 0) {
-        printf("Failed to find GPUs with Vulkan support!\n");
-        return;
-    }
-
-    printf("Found %d device(s) with Vulkan support:\n", deviceCount);
-
-    VkPhysicalDevice* devices = (VkPhysicalDevice*)malloc(sizeof(VkPhysicalDevice) * deviceCount);
-    vkEnumeratePhysicalDevices(instance, &deviceCount, devices);
-
-    for (uint32_t i = 0; i < deviceCount; i++) {
-        VkPhysicalDeviceProperties deviceProperties;
-        vkGetPhysicalDeviceProperties(devices[i], &deviceProperties);
-        printf("%d. Device name: %s\n", i + 1, deviceProperties.deviceName);
-    }
-
-    free(devices);
-}
 
 int initializeVulkan(SDL_Window* window, VkInstance* vulkanInstance) {
     VkApplicationInfo appInfo = {0};
@@ -78,7 +55,7 @@ int initializeVulkan(SDL_Window* window, VkInstance* vulkanInstance) {
             free(extensions);
             return -1;
         }
-        createInfo.enabledExtensionCountq = extensionCount;
+        createInfo.enabledExtensionCount = extensionCount;
         createInfo.ppEnabledExtensionNames = extensions;
         createInfo.flags = 0;
     #endif
@@ -93,7 +70,7 @@ int initializeVulkan(SDL_Window* window, VkInstance* vulkanInstance) {
     return 0;
 }
 
-int main(int argc, char* argv[]) {
+int main(void) {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
         return -1;
@@ -121,7 +98,36 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    enumeratePhysicalDevices(vulkanInstance);
+    VkSurfaceKHR surface;
+    if (!SDL_Vulkan_CreateSurface(window, vulkanInstance, &surface)) {
+        printf("Failed to create Vulkan surface!\n");
+        vkDestroyInstance(vulkanInstance, NULL);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return -1;
+    }
+
+    // First enumerate all devices
+    enumeratePhysicalDevices(vulkanInstance, surface);
+
+    // Then pick the best device
+    VkPhysicalDevice physicalDevice = pickPhysicalDevice(vulkanInstance, surface);
+    if (physicalDevice == VK_NULL_HANDLE) {
+        printf("Failed to find a suitable GPU!\n");
+        vkDestroySurfaceKHR(vulkanInstance, surface, NULL);
+        vkDestroyInstance(vulkanInstance, NULL);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return -1;
+    }
+
+    // Print information about the selected device
+    VkPhysicalDeviceProperties deviceProperties;
+    vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
+    QueueFamilyIndices indices = findQueueFamilies(physicalDevice, surface);
+    printf("\nSelected device: %s\n", deviceProperties.deviceName);
+    printf("Graphics Support: %s\n", indices.hasGraphics ? "Yes" : "No");
+    printf("Present Support: %s\n", indices.hasPresent ? "Yes" : "No");
 
     // Main loop
     bool running = true;
@@ -147,6 +153,7 @@ int main(int argc, char* argv[]) {
 
 
     // Cleanup 
+    vkDestroySurfaceKHR(vulkanInstance, surface, NULL);
     vkDestroyInstance(vulkanInstance, NULL);
     SDL_DestroyWindow(window);
     SDL_Quit();
