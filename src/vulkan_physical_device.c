@@ -43,7 +43,7 @@ VkPhysicalDevice pickPhysicalDevice(VkInstance instance, VkSurfaceKHR surface) {
     VkPhysicalDevice* devices = malloc(sizeof(VkPhysicalDevice) * deviceCount);
     vkEnumeratePhysicalDevices(instance, &deviceCount, devices);
     
-    // Ideally we try to find a device with queue family that supports both
+    // ideally we try to find a device with queue family that supports both
     VkPhysicalDevice selectedDevice = VK_NULL_HANDLE;
     for (uint32_t i = 0; i < deviceCount; i++) {
         QueueFamilyIndices indices = findQueueFamilies(devices[i], surface);

@@ -4,7 +4,8 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include "vulkan_device.h"
+#include "vulkan_physical_device.h"
+#include "vulkan_logical_device.h"
 
 #ifdef __APPLE__
 #define PLATFORM_MACOS
@@ -107,10 +108,8 @@ int main(void) {
         return -1;
     }
 
-    // First enumerate all devices
     enumeratePhysicalDevices(vulkanInstance, surface);
 
-    // Then pick the best device
     VkPhysicalDevice physicalDevice = pickPhysicalDevice(vulkanInstance, surface);
     if (physicalDevice == VK_NULL_HANDLE) {
         printf("Failed to find a suitable GPU!\n");
@@ -121,7 +120,6 @@ int main(void) {
         return -1;
     }
 
-    // Print information about the selected device
     VkPhysicalDeviceProperties deviceProperties;
     vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
     QueueFamilyIndices indices = findQueueFamilies(physicalDevice, surface);
@@ -129,7 +127,6 @@ int main(void) {
     printf("Graphics Support: %s\n", indices.hasGraphics ? "Yes" : "No");
     printf("Present Support: %s\n", indices.hasPresent ? "Yes" : "No");
 
-    // Main loop
     bool running = true;
     SDL_Event event;
 
