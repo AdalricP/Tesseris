@@ -1,0 +1,30 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "type": "shell",
+            "label": "Build Tesseris",
+            "command": "mkdir -p build/Debug && clang -c -fcolor-diagnostics -fansi-escape-codes -g vulkan_physical_device.c -o build/Debug/vulkan_physical_device.o -I/opt/homebrew/include/SDL2 -I/opt/homebrew/include && clang -c -fcolor-diagnostics -fansi-escape-codes -g vulkan_logical_device.c -o build/Debug/vulkan_logical_device.o -I/opt/homebrew/include/SDL2 -I/opt/homebrew/include && clang -c -fcolor-diagnostics -fansi-escape-codes -g main.c -o build/Debug/main.o -I/opt/homebrew/include/SDL2 -I/opt/homebrew/include && clang build/Debug/main.o build/Debug/vulkan_physical_device.o build/Debug/vulkan_logical_device.o -o build/Debug/outDebug -L/opt/homebrew/lib -lSDL2 -lvulkan",
+            "options": {
+                "cwd": "${workspaceFolder}/src"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "type": "shell",
+            "label": "Run Tesseris",
+            "command": "${workspaceFolder}/src/build/Debug/outDebug",
+            "dependsOn": "Build Tesseris",
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        }
+    ]
+}
