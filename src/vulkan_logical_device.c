@@ -35,13 +35,19 @@ VkResult createLogicalDevice(
     VkPhysicalDeviceFeatures deviceFeatures = {0};
     // Add required features here as we need them
 
+    // Required extensions
+    const char* deviceExtensions[] = {
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME
+    };
+
     // Create the logical device
     VkDeviceCreateInfo createInfo = {
         .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
         .queueCreateInfoCount = queueCreateInfoCount,
         .pQueueCreateInfos = queueCreateInfos,
         .pEnabledFeatures = &deviceFeatures,
-        .enabledExtensionCount = 0,  // We'll add extensions later as needed
+        .enabledExtensionCount = 1,
+        .ppEnabledExtensionNames = deviceExtensions,
     };
 
     // Create the logical device
