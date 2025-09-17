@@ -55,8 +55,4 @@ void destroyVulkanInstance(VkInstance vulkanInstance) {
     if (vulkanInstance != VK_NULL_HANDLE) {
         vkDestroyInstance(vulkanInstance, NULL);
     }
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 813ef9202927b4729e27964c7099ea970d1998a6
