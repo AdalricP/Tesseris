@@ -97,4 +97,8 @@ void cleanupApplication(ApplicationContext* app) {
     destroyVulkanSurface(app->vulkanInstance, app->surface);
     destroyVulkanInstance(app->vulkanInstance);
     cleanupSDLWindow(app->window);
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 813ef9202927b4729e27964c7099ea970d1998a6

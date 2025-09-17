@@ -31,4 +31,8 @@ void cleanupSDLWindow(SDL_Window* window) {
         SDL_DestroyWindow(window);
     }
     SDL_Quit();
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 813ef9202927b4729e27964c7099ea970d1998a6
