@@ -127,6 +127,24 @@ int main(void) {
     printf("Graphics Support: %s\n", indices.hasGraphics ? "Yes" : "No");
     printf("Present Support: %s\n", indices.hasPresent ? "Yes" : "No");
 
+    // Query and print swapchain support details
+    SwapChainSupportDetails sc = querySwapChainSupport(physicalDevice, surface);
+    VkSurfaceFormatKHR chosenFormat = chooseSwapSurfaceFormat(sc.formats, sc.formatCount);
+    VkPresentModeKHR chosenPresentMode = chooseSwapPresentMode(sc.presentModes, sc.presentModeCount);
+
+    printf("\nSwapchain Support:\n");
+    printf("  Capabilities: minImages=%u maxImages=%u currentExtent=%ux%u\n",
+           sc.capabilities.minImageCount,
+           sc.capabilities.maxImageCount,
+           sc.capabilities.currentExtent.width,
+           sc.capabilities.currentExtent.height);
+    printf("  Available Formats: %u\n", sc.formatCount);
+    printf("  Available Present Modes: %u\n", sc.presentModeCount);
+    printf("  Chosen Format: %d (colorSpace=%d)\n", (int)chosenFormat.format, (int)chosenFormat.colorSpace);
+    printf("  Chosen Present Mode: %d\n", (int)chosenPresentMode);
+
+    freeSwapChainSupport(&sc);
+
     bool running = true;
     SDL_Event event;
 

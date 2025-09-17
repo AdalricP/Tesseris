@@ -105,3 +105,61 @@ void enumeratePhysicalDevices(VkInstance instance, VkSurfaceKHR surface) {
 
     free(devices);
 }
+
+SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device, VkSurfaceKHR surface) {
+    SwapChainSupportDetails details = {0};
+
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &details.capabilities);
+
+    details.formatCount = 0;
+    vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &details.formatCount, NULL);
+    if (details.formatCount > 0) {
+        details.formats = (VkSurfaceFormatKHR*)malloc(details.formatCount * sizeof(VkSurfaceFormatKHR));
+        vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &details.formatCount, details.formats);
+    }
+
+    details.presentModeCount = 0;
+    vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &details.presentModeCount, NULL);
+    if (details.presentModeCount > 0) {
+        details.presentModes = (VkPresentModeKHR*)malloc(details.presentModeCount * sizeof(VkPresentModeKHR));
+        vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &details.presentModeCount, details.presentModes);
+    }
+
+    return details;
+}
+
+void freeSwapChainSupport(SwapChainSupportDetails* details) {
+    if (!details) return;
+    if (details->formats) {
+        free(details->formats);
+        details->formats = NULL;
+        details->formatCount = 0;
+    }
+    if (details->presentModes) {
+        free(details->presentModes);
+        details->presentModes = NULL;
+        details->presentModeCount = 0;
+    }
+}
+
+VkSurfaceFormatKHR chooseSwapSurfaceFormat(const VkSurfaceFormatKHR* formats, uint32_t formatCount) {
+    // Prefer B8G8R8A8_SRGB + SRGB_NONLINEAR
+    for (uint32_t i = 0; i < formatCount; i++) {
+        if (formats[i].format == VK_FORMAT_B8G8R8A8_SRGB &&
+            formats[i].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+            return formats[i];
+        }
+    }
+    // Fallback to the first available
+    return formatCount > 0 ? formats[0] : (VkSurfaceFormatKHR){0};
+}
+
+VkPresentModeKHR chooseSwapPresentMode(const VkPresentModeKHR* presentModes, uint32_t presentModeCount) {
+    // Prefer MAILBOX, else FIFO
+    for (uint32_t i = 0; i < presentModeCount; i++) {
+        if (presentModes[i] == VK_PRESENT_MODE_MAILBOX_KHR) {
+            return VK_PRESENT_MODE_MAILBOX_KHR;
+        }
+    }
+    return VK_PRESENT_MODE_FIFO_KHR;
+}

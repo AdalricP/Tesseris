@@ -16,4 +16,17 @@ QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surfa
 VkPhysicalDevice pickPhysicalDevice(VkInstance instance, VkSurfaceKHR surface);
 void enumeratePhysicalDevices(VkInstance instance, VkSurfaceKHR surface);
 
+typedef struct {
+    VkSurfaceCapabilitiesKHR capabilities;
+    VkSurfaceFormatKHR* formats;
+    uint32_t formatCount;
+    VkPresentModeKHR* presentModes;
+    uint32_t presentModeCount;
+} SwapChainSupportDetails;
+
+SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device, VkSurfaceKHR surface);
+void freeSwapChainSupport(SwapChainSupportDetails* details);
+VkSurfaceFormatKHR chooseSwapSurfaceFormat(const VkSurfaceFormatKHR* formats, uint32_t formatCount);
+VkPresentModeKHR chooseSwapPresentMode(const VkPresentModeKHR* presentModes, uint32_t presentModeCount);
+
 #endif // VULKAN_DEVICE_H
