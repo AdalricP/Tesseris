@@ -2,11 +2,13 @@
 #define SWAPCHAIN_H
 
 #include <vulkan/vulkan.h>
+#include <stdbool.h>
 #include "../vulkan_physical_device.h"
 
 typedef struct {
     VkSwapchainKHR swapchain;
     VkImage* images;
+    VkImageView* imageViews;
     uint32_t imageCount;
     VkFormat imageFormat;
     VkExtent2D extent;
@@ -17,7 +19,8 @@ VkResult createSwapchain(
     VkPhysicalDevice physicalDevice,
     VkSurfaceKHR surface,
     QueueFamilyIndices indices,
-    Swapchain* swapchain
+    Swapchain* swapchain,
+    bool vsyncEnabled
 );
 
 void destroySwapchain(VkDevice device, Swapchain* swapchain);

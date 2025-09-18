@@ -2,8 +2,11 @@
 #define APPLICATION_H
 
 #include <SDL2/SDL.h>
+#include <stdbool.h>
 #include <vulkan/vulkan.h>
 #include "vulkan_physical_device.h"
+#include "vulkan_logical_device.h"
+#include "swapchain/swapchain.h"
 
 /**
  * Application context structure to hold all necessary data
@@ -14,6 +17,9 @@ typedef struct {
     VkSurfaceKHR surface;
     VkPhysicalDevice physicalDevice;
     QueueFamilyIndices indices;
+    VulkanLogicalDevice logicalDevice;
+    Swapchain swapchain;
+    bool vsyncEnabled;
     bool running;
 } ApplicationContext;
 
@@ -47,5 +53,12 @@ void runApplication(ApplicationContext* app);
  * @param app - Application context to cleanup
  */
 void cleanupApplication(ApplicationContext* app);
+
+/**
+ * Toggle VSYNC by recreating the swapchain with the requested present mode
+ * @param app - Application context
+ * @param vsyncEnabled - true to enable VSYNC (FIFO), false to disable (IMMEDIATE/MAILBOX)
+ */
+void toggle_vsync(ApplicationContext* app, bool vsyncEnabled);
 
 #endif // APPLICATION_H

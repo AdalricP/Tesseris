@@ -1,18 +1,32 @@
 #include "swapchain.h"
 #include <stdlib.h>
 
+static VkPresentModeKHR choosePresentModeWithVsync(const VkPresentModeKHR* modes, uint32_t count, bool vsyncEnabled) {
+    if (vsyncEnabled) {
+        return VK_PRESENT_MODE_FIFO_KHR;
+    }
+    for (uint32_t i = 0; i < count; i++) {
+        if (modes[i] == VK_PRESENT_MODE_IMMEDIATE_KHR) return VK_PRESENT_MODE_IMMEDIATE_KHR;
+    }
+    for (uint32_t i = 0; i < count; i++) {
+        if (modes[i] == VK_PRESENT_MODE_MAILBOX_KHR) return VK_PRESENT_MODE_MAILBOX_KHR;
+    }
+    return VK_PRESENT_MODE_FIFO_KHR;
+}
+
 VkResult createSwapchain(
     VkDevice device,
     VkPhysicalDevice physicalDevice,
     VkSurfaceKHR surface,
     QueueFamilyIndices indices,
-    Swapchain* swapchain
+    Swapchain* swapchain,
+    bool vsyncEnabled
 ) {
     SwapChainSupportDetails support = querySwapChainSupport(physicalDevice, surface);
     
     // Pick settings
     VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(support.formats, support.formatCount);
-    VkPresentModeKHR presentMode = chooseSwapPresentMode(support.presentModes, support.presentModeCount);
+    VkPresentModeKHR presentMode = choosePresentModeWithVsync(support.presentModes, support.presentModeCount, vsyncEnabled);
     VkExtent2D extent = support.capabilities.currentExtent;
     
     // Image count: minImageCount + 1
@@ -64,12 +78,53 @@ VkResult createSwapchain(
     swapchain->imageFormat = surfaceFormat.format;
     swapchain->extent = extent;
     
+    // Create image views for each swapchain image
+    swapchain->imageViews = (VkImageView*)malloc(swapchain->imageCount * sizeof(VkImageView));
+    for (uint32_t i = 0; i < swapchain->imageCount; i++) {
+        VkImageViewCreateInfo viewCreateInfo = {0};
+        viewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        viewCreateInfo.image = swapchain->images[i];
+        viewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        viewCreateInfo.format = swapchain->imageFormat;
+        viewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+        viewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+        viewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+        viewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+        viewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        viewCreateInfo.subresourceRange.baseMipLevel = 0;
+        viewCreateInfo.subresourceRange.levelCount = 1;
+        viewCreateInfo.subresourceRange.baseArrayLayer = 0;
+        viewCreateInfo.subresourceRange.layerCount = 1;
+        
+        VkResult viewResult = vkCreateImageView(device, &viewCreateInfo, NULL, &swapchain->imageViews[i]);
+        if (viewResult != VK_SUCCESS) {
+            // Clean up already created image views
+            for (uint32_t j = 0; j < i; j++) {
+                vkDestroyImageView(device, swapchain->imageViews[j], NULL);
+            }
+            free(swapchain->imageViews);
+            free(swapchain->images);
+            vkDestroySwapchainKHR(device, swapchain->swapchain, NULL);
+            freeSwapChainSupport(&support);
+            return viewResult;
+        }
+    }
+    
     freeSwapChainSupport(&support);
     return VK_SUCCESS;
 }
 
 void destroySwapchain(VkDevice device, Swapchain* swapchain) {
     if (!swapchain) return;
+    
+    // Destroy image views
+    if (swapchain->imageViews) {
+        for (uint32_t i = 0; i < swapchain->imageCount; i++) {
+            vkDestroyImageView(device, swapchain->imageViews[i], NULL);
+        }
+        free(swapchain->imageViews);
+        swapchain->imageViews = NULL;
+    }
     
     if (swapchain->images) {
         free(swapchain->images);
