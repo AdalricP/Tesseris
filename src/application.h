@@ -4,8 +4,8 @@
 #include <SDL2/SDL.h>
 #include <stdbool.h>
 #include <vulkan/vulkan.h>
-#include "vulkan_physical_device.h"
-#include "vulkan_logical_device.h"
+#include "vulkan/vulkan_physical_device.h"
+#include "vulkan/vulkan_logical_device.h"
 #include "swapchain/swapchain.h"
 
 /**
@@ -19,6 +19,8 @@ typedef struct {
     QueueFamilyIndices indices;
     VulkanLogicalDevice logicalDevice;
     Swapchain swapchain;
+
+    VkRenderPass renderPass;
     bool vsyncEnabled;
     bool running;
 } ApplicationContext;

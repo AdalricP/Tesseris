@@ -1,7 +1,8 @@
 #include "application.h"
 #include "sdl_window.h"
-#include "vulkan_instance.h"
-#include "vulkan_surface.h"
+#include "vulkan/vulkan_instance.h"
+#include "vulkan/vulkan_surface.h"
+#include "renderpass/renderpass.h"
 #include <stdio.h>
 
 int initializeApplication(ApplicationContext* app) {
@@ -59,8 +60,35 @@ int initializeApplication(ApplicationContext* app) {
         destroyVulkanInstance(app->vulkanInstance);
         cleanupSDLWindow(app->window);
         return -1;
+    } // Image views already created within the swapchain, don't need to worry bout creating a new func for dat
+
+
+    // Find a supported depth format
+    VkFormat depthFormat = findDepthFormat(app->physicalDevice);
+    if (depthFormat == VK_FORMAT_UNDEFINED) {
+        printf("Failed to find supported depth format!\n");
+        destroySwapchain(app->logicalDevice.device, &app->swapchain);
+        destroyLogicalDevice(&app->logicalDevice);
+        destroyVulkanSurface(app->vulkanInstance, app->surface);
+        destroyVulkanInstance(app->vulkanInstance);
+        cleanupSDLWindow(app->window);
+        return -1;
     }
 
+    // Create render pass
+    result = createRenderPass(app->logicalDevice.device,
+                                    app->swapchain.imageFormat,
+                                    depthFormat,
+                                    &app->renderPass);
+    if (result != VK_SUCCESS) {
+        printf("Failed to create render pass!\n");
+        destroySwapchain(app->logicalDevice.device, &app->swapchain);
+        destroyLogicalDevice(&app->logicalDevice);
+        destroyVulkanSurface(app->vulkanInstance, app->surface);
+        destroyVulkanInstance(app->vulkanInstance);
+        cleanupSDLWindow(app->window);
+        return -1;
+    }
     app->running = true;
 
     return 0;
@@ -101,19 +129,25 @@ void printDeviceInfo(ApplicationContext* app) {
     printf("  Extent: %ux%u\n", app->swapchain.extent.width, app->swapchain.extent.height);
     printf("  Images: %p\n", (void*)app->swapchain.images);
     printf("  Image Views: %p\n", (void*)app->swapchain.imageViews);
-    for(int i=0;i<3;i++)
-    {
-        printf("   View [%d]:", i);
-        printf("   %p\n",(void*)app->swapchain.imageViews[i]);
+    for(int i=0; i < (int)app->swapchain.imageCount; i++) {
+        printf("   View [%d]: %p\n", i, (void*)app->swapchain.imageViews[i]);
     }
     
-    
+    // Print render pass info
+    printf("\nRender Pass:\n");
+    printf("  Render Pass Handle: %p\n", (void*)app->renderPass);
+    printf("  Color Format: %d\n", (int)app->swapchain.imageFormat);
+
+    // Assuming you stored depth format somewhere, e.g., app->depthFormat
+    printf("  Depth Format: %d\n", (int)findDepthFormat(app->physicalDevice));
+
     // Print logical device information
     printf("\nLogical Device:\n");
     printf("  Device Handle: %p\n", (void*)app->logicalDevice.device);
     printf("  Graphics Queue: %p\n", (void*)app->logicalDevice.graphicsQueue);
     printf("  Present Queue: %p\n", (void*)app->logicalDevice.presentQueue);
 }
+
 
 void handleEvents(ApplicationContext* app) {
     SDL_Event event;
@@ -141,6 +175,11 @@ void runApplication(ApplicationContext* app) {
 }
 
 void cleanupApplication(ApplicationContext* app) {
+    if (app->renderPass != VK_NULL_HANDLE) {
+        destroyRenderPass(app->logicalDevice.device, app->renderPass);
+        app->renderPass = VK_NULL_HANDLE;
+    }
+
     destroySwapchain(app->logicalDevice.device, &app->swapchain);
     destroyLogicalDevice(&app->logicalDevice);
     destroyVulkanSurface(app->vulkanInstance, app->surface);

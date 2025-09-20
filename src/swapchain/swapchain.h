@@ -3,7 +3,7 @@
 
 #include <vulkan/vulkan.h>
 #include <stdbool.h>
-#include "../vulkan_physical_device.h"
+#include "../vulkan/vulkan_physical_device.h"
 
 typedef struct {
     VkSwapchainKHR swapchain;

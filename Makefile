@@ -13,11 +13,12 @@ SRCS := \
   $(SRC_DIR)/main.c \
   $(SRC_DIR)/application.c \
   $(SRC_DIR)/sdl_window.c \
-  $(SRC_DIR)/vulkan_instance.c \
-  $(SRC_DIR)/vulkan_surface.c \
-  $(SRC_DIR)/vulkan_physical_device.c \
-  $(SRC_DIR)/vulkan_logical_device.c \
-  $(SRC_DIR)/swapchain/swapchain.c
+  $(SRC_DIR)/vulkan/vulkan_instance.c \
+  $(SRC_DIR)/vulkan/vulkan_surface.c \
+  $(SRC_DIR)/vulkan/vulkan_physical_device.c \
+  $(SRC_DIR)/vulkan/vulkan_logical_device.c \
+  $(SRC_DIR)/swapchain/swapchain.c \
+  $(SRC_DIR)/renderpass/renderpass.c
 
 OBJS := $(SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)
 
@@ -29,7 +30,11 @@ all: $(TARGET)
 
 dirs:
 	@mkdir -p $(BUILD_DIR)
-	@mkdir -p $(BUILD_DIR)/swapchain
+	@mkdir -p $(BUILD_DIR)/swapchain/ \
+  @mkdir -p $(BUILD_DIR)/vulkan/ \
+  @mkdir -p $(BUILD_DIR)/renderpass/ \
+  
+  
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | dirs
 	$(CC) -c $(CFLAGS) $< -o $@
