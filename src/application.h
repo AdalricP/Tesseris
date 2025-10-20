@@ -21,6 +21,21 @@ typedef struct {
     Swapchain swapchain;
 
     VkRenderPass renderPass;
+    // Depth resources
+    VkFormat depthFormat;
+    VkImage depthImage;
+    VkDeviceMemory depthImageMemory;
+    VkImageView depthImageView;
+
+    // Framebuffers
+    VkFramebuffer* framebuffers;
+    uint32_t framebufferCount;
+
+    // Command pool and buffers
+    VkCommandPool commandPool;
+    VkCommandBuffer* commandBuffers;
+    uint32_t commandBufferCount;
+
     bool vsyncEnabled;
     bool running;
 } ApplicationContext;

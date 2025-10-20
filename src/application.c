@@ -2,7 +2,10 @@
 #include "sdl_window.h"
 #include "vulkan/vulkan_instance.h"
 #include "vulkan/vulkan_surface.h"
+#include "vulkan/vulkan_depth.h"
 #include "renderpass/renderpass.h"
+#include "renderpass/framebuffer/framebuffer.h"
+#include "renderpass/commandbuffers/commandbuffers.h"
 #include <stdio.h>
 
 int initializeApplication(ApplicationContext* app) {
@@ -75,6 +78,9 @@ int initializeApplication(ApplicationContext* app) {
         return -1;
     }
 
+    // Store depth format for later use
+    app->depthFormat = depthFormat;
+
     // Create render pass
     result = createRenderPass(app->logicalDevice.device,
                                     app->swapchain.imageFormat,
@@ -89,6 +95,90 @@ int initializeApplication(ApplicationContext* app) {
         cleanupSDLWindow(app->window);
         return -1;
     }
+
+    // Create depth resources
+    result = createDepthResources(
+        app->physicalDevice,
+        app->logicalDevice.device,
+        app->swapchain.extent,
+        app->depthFormat,
+        &app->depthImage,
+        &app->depthImageMemory,
+        &app->depthImageView
+    );
+    if (result != VK_SUCCESS) {
+        printf("Failed to create depth resources!\n");
+        destroyRenderPass(app->logicalDevice.device, app->renderPass);
+        destroySwapchain(app->logicalDevice.device, &app->swapchain);
+        destroyLogicalDevice(&app->logicalDevice);
+        destroyVulkanSurface(app->vulkanInstance, app->surface);
+        destroyVulkanInstance(app->vulkanInstance);
+        cleanupSDLWindow(app->window);
+        return -1;
+    }
+
+    // Create framebuffers
+    result = createFramebuffers(
+        app->logicalDevice.device,
+        &app->swapchain,
+        app->depthImageView,
+        app->renderPass,
+        &app->framebuffers,
+        &app->framebufferCount
+    );
+    if (result != VK_SUCCESS) {
+        printf("Failed to create framebuffers!\n");
+        destroyDepthResources(app->logicalDevice.device, app->depthImage, app->depthImageMemory, app->depthImageView);
+        destroyRenderPass(app->logicalDevice.device, app->renderPass);
+        destroySwapchain(app->logicalDevice.device, &app->swapchain);
+        destroyLogicalDevice(&app->logicalDevice);
+        destroyVulkanSurface(app->vulkanInstance, app->surface);
+        destroyVulkanInstance(app->vulkanInstance);
+        cleanupSDLWindow(app->window);
+        return -1;
+    }
+
+    // Create command pool
+    result = createCommandPool(
+        app->logicalDevice.device,
+        app->indices,
+        &app->commandPool
+    );
+    if (result != VK_SUCCESS) {
+        printf("Failed to create command pool!\n");
+        destroyFramebuffers(app->logicalDevice.device, app->framebuffers, app->framebufferCount);
+        destroyDepthResources(app->logicalDevice.device, app->depthImage, app->depthImageMemory, app->depthImageView);
+        destroyRenderPass(app->logicalDevice.device, app->renderPass);
+        destroySwapchain(app->logicalDevice.device, &app->swapchain);
+        destroyLogicalDevice(&app->logicalDevice);
+        destroyVulkanSurface(app->vulkanInstance, app->surface);
+        destroyVulkanInstance(app->vulkanInstance);
+        cleanupSDLWindow(app->window);
+        return -1;
+    }
+
+    // Allocate command buffers (one per framebuffer)
+    result = allocateCommandBuffers(
+        app->logicalDevice.device,
+        app->commandPool,
+        app->framebufferCount,
+        &app->commandBuffers
+    );
+    if (result != VK_SUCCESS) {
+        printf("Failed to allocate command buffers!\n");
+        destroyCommandPool(app->logicalDevice.device, app->commandPool);
+        destroyFramebuffers(app->logicalDevice.device, app->framebuffers, app->framebufferCount);
+        destroyDepthResources(app->logicalDevice.device, app->depthImage, app->depthImageMemory, app->depthImageView);
+        destroyRenderPass(app->logicalDevice.device, app->renderPass);
+        destroySwapchain(app->logicalDevice.device, &app->swapchain);
+        destroyLogicalDevice(&app->logicalDevice);
+        destroyVulkanSurface(app->vulkanInstance, app->surface);
+        destroyVulkanInstance(app->vulkanInstance);
+        cleanupSDLWindow(app->window);
+        return -1;
+    }
+    app->commandBufferCount = app->framebufferCount;
+
     app->running = true;
 
     return 0;
@@ -141,6 +231,33 @@ void printDeviceInfo(ApplicationContext* app) {
     // Assuming you stored depth format somewhere, e.g., app->depthFormat
     printf("  Depth Format: %d\n", (int)findDepthFormat(app->physicalDevice));
 
+    // Print framebuffer info
+    if (app->framebuffers && app->framebufferCount > 0) {
+        printf("\nFramebuffers:\n");
+        printf("  Framebuffer Count: %u\n", app->framebufferCount);
+        for (uint32_t i = 0; i < app->framebufferCount; i++) {
+            printf("  Framebuffer[%u]: handle=%p, colorView=%p, depthView=%p\n", 
+                   i, 
+                   (void*)app->framebuffers[i],
+                   (void*)app->swapchain.imageViews[i],
+                   (void*)app->depthImageView);
+        }
+    } else {
+        printf("\nFramebuffers: Not created yet\n");
+    }
+
+    // Print command pool and buffer info
+    printf("\nCommand Pool & Buffers:\n");
+    printf("  Command Pool Handle: %p\n", (void*)app->commandPool);
+    if (app->commandBuffers && app->commandBufferCount > 0) {
+        printf("  Command Buffer Count: %u\n", app->commandBufferCount);
+        for (uint32_t i = 0; i < app->commandBufferCount; i++) {
+            printf("  CommandBuffer[%u]: %p\n", i, (void*)app->commandBuffers[i]);
+        }
+    } else {
+        printf("  Command Buffers: Not allocated yet\n");
+    }
+
     // Print logical device information
     printf("\nLogical Device:\n");
     printf("  Device Handle: %p\n", (void*)app->logicalDevice.device);
@@ -175,6 +292,29 @@ void runApplication(ApplicationContext* app) {
 }
 
 void cleanupApplication(ApplicationContext* app) {
+    // Destroy command buffers and command pool
+    if (app->commandBuffers) {
+        freeCommandBuffers(app->logicalDevice.device, app->commandPool, app->commandBuffers, app->commandBufferCount);
+        app->commandBuffers = NULL;
+        app->commandBufferCount = 0;
+    }
+
+    if (app->commandPool != VK_NULL_HANDLE) {
+        destroyCommandPool(app->logicalDevice.device, app->commandPool);
+        app->commandPool = VK_NULL_HANDLE;
+    }
+
+    if (app->framebuffers) {
+        destroyFramebuffers(app->logicalDevice.device, app->framebuffers, app->framebufferCount);
+        app->framebuffers = NULL;
+        app->framebufferCount = 0;
+    }
+
+    destroyDepthResources(app->logicalDevice.device, app->depthImage, app->depthImageMemory, app->depthImageView);
+    app->depthImage = VK_NULL_HANDLE;
+    app->depthImageMemory = VK_NULL_HANDLE;
+    app->depthImageView = VK_NULL_HANDLE;
+
     if (app->renderPass != VK_NULL_HANDLE) {
         destroyRenderPass(app->logicalDevice.device, app->renderPass);
         app->renderPass = VK_NULL_HANDLE;
@@ -192,11 +332,74 @@ void toggle_vsync(ApplicationContext* app, bool vsyncEnabled) {
     if (app->vsyncEnabled == vsyncEnabled) return;
     app->vsyncEnabled = vsyncEnabled;
 
+    // Free command buffers (they reference the old framebuffers)
+    if (app->commandBuffers) {
+        freeCommandBuffers(app->logicalDevice.device, app->commandPool, app->commandBuffers, app->commandBufferCount);
+        app->commandBuffers = NULL;
+        app->commandBufferCount = 0;
+    }
+
+    // Destroy framebuffers before recreating swapchain
+    if (app->framebuffers) {
+        destroyFramebuffers(app->logicalDevice.device, app->framebuffers, app->framebufferCount);
+        app->framebuffers = NULL;
+        app->framebufferCount = 0;
+    }
+
+    // Destroy depth resources before recreating swapchain
+    destroyDepthResources(app->logicalDevice.device, app->depthImage, app->depthImageMemory, app->depthImageView);
+
     // Recreate swapchain
     destroySwapchain(app->logicalDevice.device, &app->swapchain);
     VkResult result = createSwapchain(app->logicalDevice.device, app->physicalDevice, app->surface, app->indices, &app->swapchain, app->vsyncEnabled);
     if (result != VK_SUCCESS) {
         printf("Failed to recreate swapchain when toggling vsync!\n");
         app->running = false;
+        return;
     }
+
+    // Recreate depth resources with new swapchain extent
+    result = createDepthResources(
+        app->physicalDevice,
+        app->logicalDevice.device,
+        app->swapchain.extent,
+        app->depthFormat,
+        &app->depthImage,
+        &app->depthImageMemory,
+        &app->depthImageView
+    );
+    if (result != VK_SUCCESS) {
+        printf("Failed to recreate depth resources when toggling vsync!\n");
+        app->running = false;
+        return;
+    }
+
+    // Recreate framebuffers
+    result = createFramebuffers(
+        app->logicalDevice.device,
+        &app->swapchain,
+        app->depthImageView,
+        app->renderPass,
+        &app->framebuffers,
+        &app->framebufferCount
+    );
+    if (result != VK_SUCCESS) {
+        printf("Failed to recreate framebuffers when toggling vsync!\n");
+        app->running = false;
+        return;
+    }
+
+    // Reallocate command buffers
+    result = allocateCommandBuffers(
+        app->logicalDevice.device,
+        app->commandPool,
+        app->framebufferCount,
+        &app->commandBuffers
+    );
+    if (result != VK_SUCCESS) {
+        printf("Failed to reallocate command buffers when toggling vsync!\n");
+        app->running = false;
+        return;
+    }
+    app->commandBufferCount = app->framebufferCount;
 }
