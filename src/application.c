@@ -117,6 +117,43 @@ int initializeApplication(ApplicationContext* app) {
         return -1;
     }
 
+    // Validate push constant size support
+    {
+        VkPhysicalDeviceProperties props;
+        vkGetPhysicalDeviceProperties(app->physicalDevice, &props);
+        if (props.limits.maxPushConstantsSize < sizeof(PushConstants)) {
+            printf("Device supports only %u bytes of push constants, needed %zu.\n",
+                   props.limits.maxPushConstantsSize, sizeof(PushConstants));
+            destroyCommandPool(app->logicalDevice.device, app->commandPool);
+            destroyFramebuffers(app->logicalDevice.device, app->framebuffers, app->framebufferCount);
+            destroyDepthResources(app->logicalDevice.device, app->depthImage, app->depthImageMemory, app->depthImageView);
+            destroyRenderPass(app->logicalDevice.device, app->renderPass);
+            destroySwapchain(app->logicalDevice.device, &app->swapchain);
+            destroyLogicalDevice(&app->logicalDevice);
+            destroyVulkanSurface(app->vulkanInstance, app->surface);
+            destroyVulkanInstance(app->vulkanInstance);
+            cleanupSDLWindow(app->window);
+            return -1;
+        }
+    }
+
+    // Create pipeline layouts (descriptor set layouts + pipeline layout)
+    result = createPipelineLayouts(app->logicalDevice.device, &app->pipelineLayouts);
+    if (result != VK_SUCCESS) {
+        printf("Failed to create pipeline layouts!\n");
+        // Cleanup in reverse order
+        destroyCommandPool(app->logicalDevice.device, app->commandPool);
+        destroyFramebuffers(app->logicalDevice.device, app->framebuffers, app->framebufferCount);
+        destroyDepthResources(app->logicalDevice.device, app->depthImage, app->depthImageMemory, app->depthImageView);
+        destroyRenderPass(app->logicalDevice.device, app->renderPass);
+        destroySwapchain(app->logicalDevice.device, &app->swapchain);
+        destroyLogicalDevice(&app->logicalDevice);
+        destroyVulkanSurface(app->vulkanInstance, app->surface);
+        destroyVulkanInstance(app->vulkanInstance);
+        cleanupSDLWindow(app->window);
+        return -1;
+    }
+
     // Create framebuffers
     result = createFramebuffers(
         app->logicalDevice.device,
@@ -263,6 +300,23 @@ void printDeviceInfo(ApplicationContext* app) {
     printf("  Device Handle: %p\n", (void*)app->logicalDevice.device);
     printf("  Graphics Queue: %p\n", (void*)app->logicalDevice.graphicsQueue);
     printf("  Present Queue: %p\n", (void*)app->logicalDevice.presentQueue);
+
+    // Print pipeline layouts information
+    printf("\nPipeline Layouts:\n");
+    printf("  Global Set Layout (set=0): %p\n", (void*)app->pipelineLayouts.globalSetLayout);
+    printf("    Binding[0]: UNIFORM_BUFFER (VS|FS) — camera + lights UBO\n");
+
+    printf("  Material Set Layout (set=1): %p\n", (void*)app->pipelineLayouts.materialSetLayout);
+    const char* materialBindingNames[4] = {"albedo", "metalness", "roughness", "normal"};
+    for (int i = 0; i < 4; ++i) {
+        printf("    Binding[%d]: COMBINED_IMAGE_SAMPLER (FS) — %s\n", i, materialBindingNames[i]);
+    }
+
+    printf("  Pipeline Layout: %p\n", (void*)app->pipelineLayouts.pipelineLayout);
+
+    size_t pcSize = sizeof(PushConstants);
+    printf("  Push Constants: size=%zu bytes (device max=%u), stages=VS|FS\n",
+           pcSize, deviceProperties.limits.maxPushConstantsSize);
 }
 
 
@@ -321,6 +375,7 @@ void cleanupApplication(ApplicationContext* app) {
     }
 
     destroySwapchain(app->logicalDevice.device, &app->swapchain);
+    destroyPipelineLayouts(app->logicalDevice.device, &app->pipelineLayouts);
     destroyLogicalDevice(&app->logicalDevice);
     destroyVulkanSurface(app->vulkanInstance, app->surface);
     destroyVulkanInstance(app->vulkanInstance);

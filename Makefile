@@ -21,7 +21,8 @@ SRCS := \
   $(SRC_DIR)/swapchain/swapchain.c \
   $(SRC_DIR)/renderpass/renderpass.c \
   $(SRC_DIR)/renderpass/framebuffer/framebuffer.c \
-  $(SRC_DIR)/renderpass/commandbuffers/commandbuffers.c
+  $(SRC_DIR)/renderpass/commandbuffers/commandbuffers.c \
+  $(SRC_DIR)/graphics_pipeline/pipeline_layout.c
 
 OBJS := $(SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)
 
@@ -38,6 +39,7 @@ dirs:
 	@mkdir -p $(BUILD_DIR)/renderpass
 	@mkdir -p $(BUILD_DIR)/renderpass/framebuffer
 	@mkdir -p $(BUILD_DIR)/renderpass/commandbuffers
+	@mkdir -p $(BUILD_DIR)/graphics_pipeline
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | dirs
 	$(CC) -c $(CFLAGS) $< -o $@
 
@@ -49,5 +51,6 @@ run: $(TARGET)
 
 clean:
 	rm -rf $(BUILD_DIR)
+
 
 

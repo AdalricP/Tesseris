@@ -7,6 +7,7 @@
 #include "vulkan/vulkan_physical_device.h"
 #include "vulkan/vulkan_logical_device.h"
 #include "swapchain/swapchain.h"
+#include "graphics_pipeline/pipeline_layout.h"
 
 /**
  * Application context structure to hold all necessary data
@@ -35,6 +36,9 @@ typedef struct {
     VkCommandPool commandPool;
     VkCommandBuffer* commandBuffers;
     uint32_t commandBufferCount;
+
+    // Graphics pipeline layouts (descriptor set layouts + pipeline layout)
+    PipelineLayouts pipelineLayouts;
 
     bool vsyncEnabled;
     bool running;
