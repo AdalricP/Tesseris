@@ -6,6 +6,9 @@
 #include "renderpass/renderpass.h"
 #include "renderpass/framebuffer/framebuffer.h"
 #include "renderpass/commandbuffers/commandbuffers.h"
+#include "graphics_pipeline/buffer.h"
+#include "sync/synchronization.h"
+#include "graphics_pipeline/graphics_pipeline.h"
 #include <stdio.h>
 
 int initializeApplication(ApplicationContext* app) {
@@ -216,6 +219,97 @@ int initializeApplication(ApplicationContext* app) {
     }
     app->commandBufferCount = app->framebufferCount;
 
+    // Test buffer system
+    printf("\n=== Testing Buffer System ===\n");
+    
+    BufferCreateInfo testBufferInfo = {0};
+    testBufferInfo.size = 1024; // 1KB test buffer
+    testBufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    testBufferInfo.properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | 
+                                VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+    
+    Buffer testBuffer = {0};
+    result = createBuffer(
+        app->logicalDevice.device,
+        app->physicalDevice,
+        &testBufferInfo,
+        &testBuffer
+    );
+    
+    if (result == VK_SUCCESS) {
+        printf("\nTest Buffer Created Successfully!\n");
+        
+        // Test updating the buffer
+        printf("\n=== Testing Buffer Update ===\n");
+        float testData[4] = {1.0f, 2.0f, 3.0f, 4.0f};
+        result = updateBuffer(app->logicalDevice.device, &testBuffer, testData, sizeof(testData), 0);
+        
+        if (result == VK_SUCCESS) {
+            printf("\nBuffer Update Test: PASSED\n");
+        } else {
+            printf("\nBuffer Update Test: FAILED\n");
+        }
+        
+        // Clean up test buffer
+        printf("\n=== Cleaning Up Test Buffer ===\n");
+        destroyBuffer(app->logicalDevice.device, &testBuffer);
+        printf("\nBuffer System: Ready\n");
+    } else {
+        printf("\nBuffer System Test: FAILED\n");
+    }
+
+    // Create synchronization primitives
+    printf("\n=== Creating Synchronization Primitives ===\n");
+    result = createFrameSync(app->logicalDevice.device, &app->frameSync);
+    if (result != VK_SUCCESS) {
+        printf("Failed to create frame synchronization!\n");
+        destroyCommandPool(app->logicalDevice.device, app->commandPool);
+        destroyFramebuffers(app->logicalDevice.device, app->framebuffers, app->framebufferCount);
+        destroyDepthResources(app->logicalDevice.device, app->depthImage, app->depthImageMemory, app->depthImageView);
+        destroyRenderPass(app->logicalDevice.device, app->renderPass);
+        destroySwapchain(app->logicalDevice.device, &app->swapchain);
+        destroyPipelineLayouts(app->logicalDevice.device, &app->pipelineLayouts);
+        destroyLogicalDevice(&app->logicalDevice);
+        destroyVulkanSurface(app->vulkanInstance, app->surface);
+        destroyVulkanInstance(app->vulkanInstance);
+        cleanupSDLWindow(app->window);
+        return -1;
+    }
+    printf("\nFrame Synchronization: Ready\n");
+
+    // Create graphics pipeline
+    printf("\n=== Creating Graphics Pipeline ===\n");
+    GraphicsPipelineConfig config = createDefaultPipelineConfig(
+        app->logicalDevice.device,
+        app->pipelineLayouts.pipelineLayout,
+        app->renderPass,
+        app->swapchain.extent
+    );
+    config.vertShaderPath = "shaders/basic.vert.spv";
+    config.fragShaderPath = "shaders/basic.frag.spv";
+    // No vertex input - triangle is hardcoded in shader
+    config.vertexBindingCount = 0;
+    config.vertexAttributeCount = 0;
+    
+    result = createGraphicsPipeline(&config, &app->graphicsPipeline);
+    
+    if (result != VK_SUCCESS) {
+        printf("Failed to create graphics pipeline!\n");
+        destroyFrameSync(app->logicalDevice.device, &app->frameSync);
+        destroyCommandPool(app->logicalDevice.device, app->commandPool);
+        destroyFramebuffers(app->logicalDevice.device, app->framebuffers, app->framebufferCount);
+        destroyDepthResources(app->logicalDevice.device, app->depthImage, app->depthImageMemory, app->depthImageView);
+        destroyRenderPass(app->logicalDevice.device, app->renderPass);
+        destroySwapchain(app->logicalDevice.device, &app->swapchain);
+        destroyPipelineLayouts(app->logicalDevice.device, &app->pipelineLayouts);
+        destroyLogicalDevice(&app->logicalDevice);
+        destroyVulkanSurface(app->vulkanInstance, app->surface);
+        destroyVulkanInstance(app->vulkanInstance);
+        cleanupSDLWindow(app->window);
+        return -1;
+    }
+    printf("\nGraphics Pipeline: Ready\n");
+
     app->running = true;
 
     return 0;
@@ -317,6 +411,37 @@ void printDeviceInfo(ApplicationContext* app) {
     size_t pcSize = sizeof(PushConstants);
     printf("  Push Constants: size=%zu bytes (device max=%u), stages=VS|FS\n",
            pcSize, deviceProperties.limits.maxPushConstantsSize);
+
+    // Print graphics pipeline system status
+    printf("\nGraphics Pipeline System:\n");
+    printf("  Pipeline Layout System: Ready\n");
+    printf("    Descriptor Set Layouts: 2 (Global + Material)\n");
+    printf("    Push Constants: %zu bytes configured\n", pcSize);
+    printf("  Shader Module Loader: Ready\n");
+    printf("    Supports: SPIR-V from file or memory\n");
+    printf("  Graphics Pipeline Builder: Ready\n");
+    printf("    Configurable: Vertex input, Depth testing, Blending, Culling\n");
+    printf("    Dynamic State: Viewport + Scissor\n");
+    printf("  Status: Ready to create graphics pipelines with shaders\n");
+
+    // Print synchronization info
+    printf("\nFrame Synchronization:\n");
+    printf("  Image Available Semaphore: %p\n", (void*)app->frameSync.imageAvailableSemaphore);
+    printf("  Render Finished Semaphore: %p\n", (void*)app->frameSync.renderFinishedSemaphore);
+    printf("  In-Flight Fence: %p\n", (void*)app->frameSync.inFlightFence);
+    printf("  Status: Ready for frame rendering\n");
+
+    // Print graphics pipeline info
+    printf("\nGraphics Pipeline Instance:\n");
+    printf("  Pipeline: %p\n", (void*)app->graphicsPipeline.pipeline);
+    printf("  Vertex Shader: %p\n", (void*)app->graphicsPipeline.vertShaderModule);
+    printf("  Fragment Shader: %p\n", (void*)app->graphicsPipeline.fragShaderModule);
+    printf("  Viewport: %dx%d\n", app->swapchain.extent.width, app->swapchain.extent.height);
+    printf("  Topology: Triangle List\n");
+    printf("  Depth Test: Enabled (LESS)\n");
+    printf("  Blending: Disabled\n");
+    printf("  Culling: Back faces (CCW front)\n");
+    printf("  Status: Ready to render\n");
 }
 
 
@@ -346,6 +471,17 @@ void runApplication(ApplicationContext* app) {
 }
 
 void cleanupApplication(ApplicationContext* app) {
+    // Wait for device to be idle before cleanup
+    vkDeviceWaitIdle(app->logicalDevice.device);
+
+    // Destroy graphics pipeline
+    printf("\n=== Cleaning Up Graphics Pipeline ===\n");
+    destroyGraphicsPipeline(app->logicalDevice.device, &app->graphicsPipeline);
+
+    // Destroy synchronization objects
+    printf("\n=== Cleaning Up Synchronization ===\n");
+    destroyFrameSync(app->logicalDevice.device, &app->frameSync);
+
     // Destroy command buffers and command pool
     if (app->commandBuffers) {
         freeCommandBuffers(app->logicalDevice.device, app->commandPool, app->commandBuffers, app->commandBufferCount);

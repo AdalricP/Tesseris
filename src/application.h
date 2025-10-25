@@ -8,6 +8,8 @@
 #include "vulkan/vulkan_logical_device.h"
 #include "swapchain/swapchain.h"
 #include "graphics_pipeline/pipeline_layout.h"
+#include "graphics_pipeline/graphics_pipeline.h"
+#include "sync/synchronization.h"
 
 /**
  * Application context structure to hold all necessary data
@@ -39,6 +41,12 @@ typedef struct {
 
     // Graphics pipeline layouts (descriptor set layouts + pipeline layout)
     PipelineLayouts pipelineLayouts;
+
+    // Graphics pipeline
+    GraphicsPipeline graphicsPipeline;
+
+    // Frame synchronization
+    FrameSync frameSync;
 
     bool vsyncEnabled;
     bool running;
