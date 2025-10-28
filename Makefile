@@ -1,7 +1,7 @@
 # Simple root-level Makefile to build from repository root
 
 CC := clang
-GLSLC := /opt/homebrew/opt/glslang/bin/glslang
+GLSLC := /opt/homebrew/bin/glslangValidator
 INCLUDES := -I/opt/homebrew/include/SDL2 -I/opt/homebrew/include
 CFLAGS := -g -fcolor-diagnostics -fansi-escape-codes $(INCLUDES)
 LDFLAGS := -L/opt/homebrew/lib
@@ -32,7 +32,8 @@ SRCS := \
   $(SRC_DIR)/graphics_pipeline/shader_module.c \
   $(SRC_DIR)/graphics_pipeline/graphics_pipeline.c \
   $(SRC_DIR)/graphics_pipeline/buffer.c \
-  $(SRC_DIR)/sync/synchronization.c
+  $(SRC_DIR)/sync/synchronization.c \
+  $(SRC_DIR)/rendering/draw_loop.c
 
 OBJS := $(SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)
 
@@ -40,7 +41,7 @@ TARGET := $(BUILD_DIR)/outDebug
 
 .PHONY: all run clean dirs play shaders
 
-all: $(TARGET)
+all: shaders $(TARGET)
 
 shaders: $(SHADER_SPVS)
 	@echo "Shaders compiled"
@@ -70,6 +71,7 @@ dirs:
 	@mkdir -p $(BUILD_DIR)/renderpass/commandbuffers
 	@mkdir -p $(BUILD_DIR)/graphics_pipeline
 	@mkdir -p $(BUILD_DIR)/sync
+	@mkdir -p $(BUILD_DIR)/rendering
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | dirs
 	$(CC) -c $(CFLAGS) $< -o $@
 
@@ -77,6 +79,7 @@ $(TARGET): $(OBJS)
 	$(CC) $(OBJS) -o $@ $(LDFLAGS) $(LIBS)
 
 run: $(TARGET)
+	clear
 	$(TARGET)
 
 clean:

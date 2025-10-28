@@ -26,12 +26,12 @@ GraphicsPipelineConfig createDefaultPipelineConfig(
     config.vertexAttributeCount = 0;
     
     // Sensible 3D rendering defaults
-    config.enableDepthTest = true;
-    config.enableDepthWrite = true;
+    config.enableDepthTest = false; // Temporarily disable for testing
+    config.enableDepthWrite = false;
     config.depthCompareOp = VK_COMPARE_OP_LESS;
     
     config.enableBlending = false;
-    config.cullMode = VK_CULL_MODE_BACK_BIT;
+    config.cullMode = VK_CULL_MODE_NONE;
     config.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     config.polygonMode = VK_POLYGON_MODE_FILL;
     
@@ -153,9 +153,9 @@ VkResult createGraphicsPipeline(
     VkPipelineViewportStateCreateInfo viewportState = {0};
     viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
     viewportState.viewportCount = 1;
-    viewportState.pViewports = &viewport;
+    viewportState.pViewports = NULL; // Dynamic
     viewportState.scissorCount = 1;
-    viewportState.pScissors = &scissor;
+    viewportState.pScissors = NULL; // Dynamic
 
     // --- Rasterizer ---
     VkPipelineRasterizationStateCreateInfo rasterizer = {0};
@@ -228,7 +228,11 @@ VkResult createGraphicsPipeline(
     pipelineInfo.pViewportState = &viewportState;
     pipelineInfo.pRasterizationState = &rasterizer;
     pipelineInfo.pMultisampleState = &multisampling;
-    pipelineInfo.pDepthStencilState = &depthStencil;
+    if (config->enableDepthTest) {
+        pipelineInfo.pDepthStencilState = &depthStencil;
+    } else {
+        pipelineInfo.pDepthStencilState = NULL;
+    }
     pipelineInfo.pColorBlendState = &colorBlending;
     pipelineInfo.pDynamicState = &dynamicState;
     pipelineInfo.layout = config->pipelineLayout;

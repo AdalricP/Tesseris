@@ -9,6 +9,7 @@
 #include "graphics_pipeline/buffer.h"
 #include "sync/synchronization.h"
 #include "graphics_pipeline/graphics_pipeline.h"
+#include "rendering/draw_loop.h"
 #include <stdio.h>
 
 int initializeApplication(ApplicationContext* app) {
@@ -70,16 +71,7 @@ int initializeApplication(ApplicationContext* app) {
 
 
     // Find a supported depth format
-    VkFormat depthFormat = findDepthFormat(app->physicalDevice);
-    if (depthFormat == VK_FORMAT_UNDEFINED) {
-        printf("Failed to find supported depth format!\n");
-        destroySwapchain(app->logicalDevice.device, &app->swapchain);
-        destroyLogicalDevice(&app->logicalDevice);
-        destroyVulkanSurface(app->vulkanInstance, app->surface);
-        destroyVulkanInstance(app->vulkanInstance);
-        cleanupSDLWindow(app->window);
-        return -1;
-    }
+    VkFormat depthFormat = VK_FORMAT_UNDEFINED; // Temporarily disable depth
 
     // Store depth format for later use
     app->depthFormat = depthFormat;
@@ -99,26 +91,10 @@ int initializeApplication(ApplicationContext* app) {
         return -1;
     }
 
-    // Create depth resources
-    result = createDepthResources(
-        app->physicalDevice,
-        app->logicalDevice.device,
-        app->swapchain.extent,
-        app->depthFormat,
-        &app->depthImage,
-        &app->depthImageMemory,
-        &app->depthImageView
-    );
-    if (result != VK_SUCCESS) {
-        printf("Failed to create depth resources!\n");
-        destroyRenderPass(app->logicalDevice.device, app->renderPass);
-        destroySwapchain(app->logicalDevice.device, &app->swapchain);
-        destroyLogicalDevice(&app->logicalDevice);
-        destroyVulkanSurface(app->vulkanInstance, app->surface);
-        destroyVulkanInstance(app->vulkanInstance);
-        cleanupSDLWindow(app->window);
-        return -1;
-    }
+    // Skip depth resources for now
+    app->depthImage = VK_NULL_HANDLE;
+    app->depthImageMemory = VK_NULL_HANDLE;
+    app->depthImageView = VK_NULL_HANDLE;
 
     // Validate push constant size support
     {
@@ -290,6 +266,9 @@ int initializeApplication(ApplicationContext* app) {
     // No vertex input - triangle is hardcoded in shader
     config.vertexBindingCount = 0;
     config.vertexAttributeCount = 0;
+    config.enableDepthTest = true;
+    config.enableDepthWrite = true;
+    config.cullMode = VK_CULL_MODE_NONE;
     
     result = createGraphicsPipeline(&config, &app->graphicsPipeline);
     
@@ -426,9 +405,9 @@ void printDeviceInfo(ApplicationContext* app) {
 
     // Print synchronization info
     printf("\nFrame Synchronization:\n");
-    printf("  Image Available Semaphore: %p\n", (void*)app->frameSync.imageAvailableSemaphore);
-    printf("  Render Finished Semaphore: %p\n", (void*)app->frameSync.renderFinishedSemaphore);
-    printf("  In-Flight Fence: %p\n", (void*)app->frameSync.inFlightFence);
+    printf("  Image Available Semaphore: %p (%s)\n", (void*)app->frameSync.imageAvailableSemaphore, app->frameSync.imageAvailableSemaphore != VK_NULL_HANDLE ? "Valid" : "Invalid");
+    printf("  Render Finished Semaphore: %p (%s)\n", (void*)app->frameSync.renderFinishedSemaphore, app->frameSync.renderFinishedSemaphore != VK_NULL_HANDLE ? "Valid" : "Invalid");
+    printf("  In-Flight Fence: %p (%s)\n", (void*)app->frameSync.inFlightFence, app->frameSync.inFlightFence != VK_NULL_HANDLE ? "Valid" : "Invalid");
     printf("  Status: Ready for frame rendering\n");
 
     // Print graphics pipeline info
@@ -465,8 +444,7 @@ void runApplication(ApplicationContext* app) {
     while (app->running) {
         handleEvents(app);
         
-        // Handle Rendering Here
-        // TODO: Add rendering logic when implementing graphics pipeline
+        draw_frame(app);
     }
 }
 
