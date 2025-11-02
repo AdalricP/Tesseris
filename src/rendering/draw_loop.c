@@ -50,7 +50,16 @@ void draw_frame(ApplicationContext* app) {
     VkRect2D scissor = {{0, 0}, app->swapchain.extent};
     vkCmdSetScissor(cmdBuffer, 0, 1, &scissor);
 
-    vkCmdDraw(cmdBuffer, 3, 1, 0, 0); // 3 vertices, 1 instance
+    // Bind vertex buffer
+    VkBuffer vertexBuffers[] = {app->vertexBuffer.buffer};
+    VkDeviceSize offsets[] = {0};
+    vkCmdBindVertexBuffers(cmdBuffer, 0, 1, vertexBuffers, offsets);
+
+    // Bind descriptor set
+    vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, 
+                           app->pipelineLayouts.pipelineLayout, 0, 1, &app->descriptorSet, 0, NULL);
+
+    vkCmdDraw(cmdBuffer, 36, 1, 0, 0); // 36 vertices for cube, 1 instance
 
     vkCmdEndRenderPass(cmdBuffer);
 

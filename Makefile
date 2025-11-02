@@ -32,8 +32,13 @@ SRCS := \
   $(SRC_DIR)/graphics_pipeline/shader_module.c \
   $(SRC_DIR)/graphics_pipeline/graphics_pipeline.c \
   $(SRC_DIR)/graphics_pipeline/buffer.c \
+  $(SRC_DIR)/vertex_buffer/vertex_buffer.c \
+  $(SRC_DIR)/uniform_buffer/uniform_buffer.c \
+  $(SRC_DIR)/math/matrix.c \
+  $(SRC_DIR)/math/vector.c \
   $(SRC_DIR)/sync/synchronization.c \
-  $(SRC_DIR)/rendering/draw_loop.c
+  $(SRC_DIR)/rendering/draw_loop.c \
+  $(SRC_DIR)/input/input.c
 
 OBJS := $(SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)
 
@@ -70,8 +75,12 @@ dirs:
 	@mkdir -p $(BUILD_DIR)/renderpass/framebuffer
 	@mkdir -p $(BUILD_DIR)/renderpass/commandbuffers
 	@mkdir -p $(BUILD_DIR)/graphics_pipeline
+	@mkdir -p $(BUILD_DIR)/vertex_buffer
+	@mkdir -p $(BUILD_DIR)/uniform_buffer
+	@mkdir -p $(BUILD_DIR)/math
 	@mkdir -p $(BUILD_DIR)/sync
 	@mkdir -p $(BUILD_DIR)/rendering
+	@mkdir -p $(BUILD_DIR)/input
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | dirs
 	$(CC) -c $(CFLAGS) $< -o $@
 

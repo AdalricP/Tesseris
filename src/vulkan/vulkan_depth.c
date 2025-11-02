@@ -29,6 +29,8 @@ VkResult createDepthResources(
     VkDeviceMemory* depthImageMemory,
     VkImageView* depthImageView
 ) {
+    printf("Creating depth resources with format %d, extent %dx%d\n", (int)depthFormat, extent.width, extent.height);
+    
     // Create depth image
     VkImageCreateInfo imageInfo = {0};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -45,11 +47,13 @@ VkResult createDepthResources(
     imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
+    printf("Calling vkCreateImage...\n");
     VkResult result = vkCreateImage(device, &imageInfo, NULL, depthImage);
     if (result != VK_SUCCESS) {
-        printf("Failed to create depth image!\n");
+        printf("Failed to create depth image! Error: %d\n", result);
         return result;
     }
+    printf("Depth image created successfully: %p\n", (void*)*depthImage);
 
     // Allocate memory for depth image
     VkMemoryRequirements memRequirements;

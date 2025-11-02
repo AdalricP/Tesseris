@@ -7,16 +7,24 @@
 #include "renderpass/framebuffer/framebuffer.h"
 #include "renderpass/commandbuffers/commandbuffers.h"
 #include "graphics_pipeline/buffer.h"
+#include "vertex_buffer/vertex_buffer.h"
+#include "uniform_buffer/uniform_buffer.h"
+#include "math/vector.h"
 #include "sync/synchronization.h"
 #include "graphics_pipeline/graphics_pipeline.h"
 #include "rendering/draw_loop.h"
 #include <stdio.h>
+#include <stddef.h>  // for offsetof
 
 int initializeApplication(ApplicationContext* app) {
     // Initialize SDL and create window
     if (initializeSDLWindow(&app->window) != 0) {
         return -1;
     }
+
+    // Enable relative mouse mode and hide cursor for camera control
+    SDL_SetRelativeMouseMode(SDL_TRUE);
+    SDL_ShowCursor(SDL_DISABLE);
 
     // Initialize Vulkan instance
     if (initializeVulkanInstance(app->window, &app->vulkanInstance) != 0) {
@@ -71,7 +79,15 @@ int initializeApplication(ApplicationContext* app) {
 
 
     // Find a supported depth format
-    VkFormat depthFormat = VK_FORMAT_UNDEFINED; // Temporarily disable depth
+    VkFormat depthFormat = findDepthFormat(app->physicalDevice);
+    if (depthFormat == VK_FORMAT_UNDEFINED) {
+        printf("No suitable depth format found!\n");
+        destroyVulkanSurface(app->vulkanInstance, app->surface);
+        destroyVulkanInstance(app->vulkanInstance);
+        cleanupSDLWindow(app->window);
+        return -1;
+    }
+    printf("Using depth format: %d\n", (int)depthFormat);
 
     // Store depth format for later use
     app->depthFormat = depthFormat;
@@ -95,6 +111,29 @@ int initializeApplication(ApplicationContext* app) {
     app->depthImage = VK_NULL_HANDLE;
     app->depthImageMemory = VK_NULL_HANDLE;
     app->depthImageView = VK_NULL_HANDLE;
+
+    // Create depth resources
+    printf("\n=== Creating Depth Resources ===\n");
+    result = createDepthResources(
+        app->physicalDevice,
+        app->logicalDevice.device,
+        app->swapchain.extent,
+        app->depthFormat,
+        &app->depthImage,
+        &app->depthImageMemory,
+        &app->depthImageView
+    );
+    if (result != VK_SUCCESS) {
+        printf("Failed to create depth resources!\n");
+        destroyRenderPass(app->logicalDevice.device, app->renderPass);
+        destroySwapchain(app->logicalDevice.device, &app->swapchain);
+        destroyLogicalDevice(&app->logicalDevice);
+        destroyVulkanSurface(app->vulkanInstance, app->surface);
+        destroyVulkanInstance(app->vulkanInstance);
+        cleanupSDLWindow(app->window);
+        return -1;
+    }
+    printf("\nDepth Resources: Ready\n");
 
     // Validate push constant size support
     {
@@ -173,7 +212,185 @@ int initializeApplication(ApplicationContext* app) {
         return -1;
     }
 
-    // Allocate command buffers (one per framebuffer)
+    // Create vertex buffer
+    printf("\n=== Creating Vertex Buffer ===\n");
+    result = createVertexBuffer(
+        app->logicalDevice.device,
+        app->physicalDevice,
+        1024,  // 1KB for now, can be expanded later
+        &app->vertexBuffer
+    );
+    if (result != VK_SUCCESS) {
+        printf("Failed to create vertex buffer!\n");
+        destroyCommandPool(app->logicalDevice.device, app->commandPool);
+        destroyFramebuffers(app->logicalDevice.device, app->framebuffers, app->framebufferCount);
+        destroyDepthResources(app->logicalDevice.device, app->depthImage, app->depthImageMemory, app->depthImageView);
+        destroyRenderPass(app->logicalDevice.device, app->renderPass);
+        destroySwapchain(app->logicalDevice.device, &app->swapchain);
+        destroyLogicalDevice(&app->logicalDevice);
+        destroyVulkanSurface(app->vulkanInstance, app->surface);
+        destroyVulkanInstance(app->vulkanInstance);
+        cleanupSDLWindow(app->window);
+        return -1;
+    }
+    printf("\nVertex Buffer: Ready\n");
+
+    // Update vertex buffer with triangle data
+    printf("\n=== Updating Vertex Buffer with Triangle Data ===\n");
+    result = updateVertexBufferWithCube(app->logicalDevice.device, &app->vertexBuffer);
+    if (result != VK_SUCCESS) {
+        printf("Failed to update vertex buffer with triangle data!\n");
+        destroyBuffer(app->logicalDevice.device, &app->vertexBuffer);
+        destroyCommandPool(app->logicalDevice.device, app->commandPool);
+        destroyFramebuffers(app->logicalDevice.device, app->framebuffers, app->framebufferCount);
+        destroyDepthResources(app->logicalDevice.device, app->depthImage, app->depthImageMemory, app->depthImageView);
+        destroyRenderPass(app->logicalDevice.device, app->renderPass);
+        destroySwapchain(app->logicalDevice.device, &app->swapchain);
+        destroyLogicalDevice(&app->logicalDevice);
+        destroyVulkanSurface(app->vulkanInstance, app->surface);
+        destroyVulkanInstance(app->vulkanInstance);
+        cleanupSDLWindow(app->window);
+        return -1;
+    }
+    printf("\nVertex Buffer: Loaded with triangle data\n");
+
+    // Create uniform buffer for MVP matrices
+    printf("\n=== Creating Uniform Buffer ===\n");
+    result = createUniformBuffer(
+        app->logicalDevice.device,
+        app->physicalDevice,
+        &app->uniformBuffer
+    );
+    if (result != VK_SUCCESS) {
+        printf("Failed to create uniform buffer!\n");
+        destroyBuffer(app->logicalDevice.device, &app->vertexBuffer);
+        destroyCommandPool(app->logicalDevice.device, app->commandPool);
+        destroyFramebuffers(app->logicalDevice.device, app->framebuffers, app->framebufferCount);
+        destroyDepthResources(app->logicalDevice.device, app->depthImage, app->depthImageMemory, app->depthImageView);
+        destroyRenderPass(app->logicalDevice.device, app->renderPass);
+        destroySwapchain(app->logicalDevice.device, &app->swapchain);
+        destroyLogicalDevice(&app->logicalDevice);
+        destroyVulkanSurface(app->vulkanInstance, app->surface);
+        destroyVulkanInstance(app->vulkanInstance);
+        cleanupSDLWindow(app->window);
+        return -1;
+    }
+    printf("\nUniform Buffer: Ready\n");
+
+    // Update uniform buffer with initial MVP matrices
+    printf("\n=== Setting Up Initial MVP Matrices ===\n");
+    UniformBufferObject ubo = {0};
+    
+    // Model matrix: identity (no transformation)
+    // Model matrix: rotate 45° around Y-axis and scale to 0.5
+    mat4 rotation = mat4_rotate_y(45.0f * (3.14159f / 180.0f));
+    mat4 scaling = mat4_scale(vec3_create(0.5f, 0.5f, 0.5f));
+    ubo.model = mat4_multiply(rotation, scaling);
+    
+    // View matrix: from camera
+    ubo.view = getCameraViewMatrix(&app->camera);
+    
+    // Projection matrix: perspective
+    float aspect = (float)app->swapchain.extent.width / (float)app->swapchain.extent.height;
+    ubo.proj = mat4_perspective(60.0f * (3.14159f / 180.0f), aspect, 0.1f, 10.0f);
+    
+    result = updateUniformBuffer(app->logicalDevice.device, &app->uniformBuffer, &ubo);
+    if (result != VK_SUCCESS) {
+        printf("Failed to update uniform buffer with MVP matrices!\n");
+        destroyBuffer(app->logicalDevice.device, &app->uniformBuffer);
+        destroyBuffer(app->logicalDevice.device, &app->vertexBuffer);
+        destroyCommandPool(app->logicalDevice.device, app->commandPool);
+        destroyFramebuffers(app->logicalDevice.device, app->framebuffers, app->framebufferCount);
+        destroyDepthResources(app->logicalDevice.device, app->depthImage, app->depthImageMemory, app->depthImageView);
+        destroyRenderPass(app->logicalDevice.device, app->renderPass);
+        destroySwapchain(app->logicalDevice.device, &app->swapchain);
+        destroyLogicalDevice(&app->logicalDevice);
+        destroyVulkanSurface(app->vulkanInstance, app->surface);
+        destroyVulkanInstance(app->vulkanInstance);
+        cleanupSDLWindow(app->window);
+        return -1;
+    }
+    printf("\nMVP Matrices: Set up (Model: identity, View: look-at, Proj: perspective)\n");
+
+    // Initialize temporary camera system
+    initCamera(&app->camera, vec3_create(0.0f, 0.0f, 3.0f));
+    printf("\nCamera: Initialized at (0,0,3) facing negative Z\n");
+
+    // Create descriptor pool
+    printf("\n=== Creating Descriptor Pool ===\n");
+    VkDescriptorPoolSize poolSize = {0};
+    poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    poolSize.descriptorCount = 1;
+
+    VkDescriptorPoolCreateInfo poolInfo = {0};
+    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolInfo.poolSizeCount = 1;
+    poolInfo.pPoolSizes = &poolSize;
+    poolInfo.maxSets = 1;
+
+    result = vkCreateDescriptorPool(app->logicalDevice.device, &poolInfo, NULL, &app->descriptorPool);
+    if (result != VK_SUCCESS) {
+        printf("Failed to create descriptor pool!\n");
+        destroyBuffer(app->logicalDevice.device, &app->uniformBuffer);
+        destroyBuffer(app->logicalDevice.device, &app->vertexBuffer);
+        destroyCommandPool(app->logicalDevice.device, app->commandPool);
+        destroyFramebuffers(app->logicalDevice.device, app->framebuffers, app->framebufferCount);
+        destroyDepthResources(app->logicalDevice.device, app->depthImage, app->depthImageMemory, app->depthImageView);
+        destroyRenderPass(app->logicalDevice.device, app->renderPass);
+        destroySwapchain(app->logicalDevice.device, &app->swapchain);
+        destroyLogicalDevice(&app->logicalDevice);
+        destroyVulkanSurface(app->vulkanInstance, app->surface);
+        destroyVulkanInstance(app->vulkanInstance);
+        cleanupSDLWindow(app->window);
+        return -1;
+    }
+    printf("\nDescriptor Pool: Created\n");
+
+    // Allocate descriptor set
+    printf("\n=== Allocating Descriptor Set ===\n");
+    VkDescriptorSetAllocateInfo allocInfo = {0};
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = app->descriptorPool;
+    allocInfo.descriptorSetCount = 1;
+    allocInfo.pSetLayouts = &app->pipelineLayouts.globalSetLayout;
+
+    result = vkAllocateDescriptorSets(app->logicalDevice.device, &allocInfo, &app->descriptorSet);
+    if (result != VK_SUCCESS) {
+        printf("Failed to allocate descriptor set!\n");
+        vkDestroyDescriptorPool(app->logicalDevice.device, app->descriptorPool, NULL);
+        destroyBuffer(app->logicalDevice.device, &app->uniformBuffer);
+        destroyBuffer(app->logicalDevice.device, &app->vertexBuffer);
+        destroyCommandPool(app->logicalDevice.device, app->commandPool);
+        destroyFramebuffers(app->logicalDevice.device, app->framebuffers, app->framebufferCount);
+        destroyDepthResources(app->logicalDevice.device, app->depthImage, app->depthImageMemory, app->depthImageView);
+        destroyRenderPass(app->logicalDevice.device, app->renderPass);
+        destroySwapchain(app->logicalDevice.device, &app->swapchain);
+        destroyLogicalDevice(&app->logicalDevice);
+        destroyVulkanSurface(app->vulkanInstance, app->surface);
+        destroyVulkanInstance(app->vulkanInstance);
+        cleanupSDLWindow(app->window);
+        return -1;
+    }
+    printf("\nDescriptor Set: Allocated\n");
+
+    // Bind uniform buffer to descriptor set
+    VkDescriptorBufferInfo bufferInfo = {0};
+    bufferInfo.buffer = app->uniformBuffer.buffer;
+    bufferInfo.offset = 0;
+    bufferInfo.range = sizeof(UniformBufferObject);
+
+    VkWriteDescriptorSet descriptorWrite = {0};
+    descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrite.dstSet = app->descriptorSet;
+    descriptorWrite.dstBinding = 0;
+    descriptorWrite.dstArrayElement = 0;
+    descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    descriptorWrite.descriptorCount = 1;
+    descriptorWrite.pBufferInfo = &bufferInfo;
+
+    vkUpdateDescriptorSets(app->logicalDevice.device, 1, &descriptorWrite, 0, NULL);
+    printf("\nDescriptor Set: Bound to uniform buffer\n");
+
     result = allocateCommandBuffers(
         app->logicalDevice.device,
         app->commandPool,
@@ -263,9 +480,35 @@ int initializeApplication(ApplicationContext* app) {
     );
     config.vertShaderPath = "shaders/basic.vert.spv";
     config.fragShaderPath = "shaders/basic.frag.spv";
-    // No vertex input - triangle is hardcoded in shader
-    config.vertexBindingCount = 0;
-    config.vertexAttributeCount = 0;
+    
+    // Configure vertex input for our Vertex struct
+    // Vertex struct: position (vec3, 12 bytes) + color (vec3, 12 bytes) = 24 bytes total
+    VertexBindingDescription vertexBindings[1] = {{
+        .binding = 0,
+        .stride = sizeof(Vertex),  // 24 bytes per vertex
+        .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
+    }};
+    
+    VertexAttributeDescription vertexAttributes[2] = {
+        {
+            .location = 0,
+            .binding = 0,
+            .format = VK_FORMAT_R32G32B32_SFLOAT,  // vec3 for position
+            .offset = offsetof(Vertex, position)    // 0 bytes offset
+        },
+        {
+            .location = 1,
+            .binding = 0,
+            .format = VK_FORMAT_R32G32B32_SFLOAT,  // vec3 for color
+            .offset = offsetof(Vertex, color)       // 12 bytes offset
+        }
+    };
+    
+    config.vertexBindings = vertexBindings;
+    config.vertexBindingCount = 1;
+    config.vertexAttributes = vertexAttributes;
+    config.vertexAttributeCount = 2;
+    
     config.enableDepthTest = true;
     config.enableDepthWrite = true;
     config.cullMode = VK_CULL_MODE_NONE;
@@ -368,6 +611,13 @@ void printDeviceInfo(ApplicationContext* app) {
         printf("  Command Buffers: Not allocated yet\n");
     }
 
+    // Print vertex buffer info
+    printf("\nVertex Buffer:\n");
+    printf("  Buffer Handle: %p\n", (void*)app->vertexBuffer.buffer);
+    printf("  Memory Handle: %p\n", (void*)app->vertexBuffer.memory);
+    printf("  Size: %llu bytes\n", (unsigned long long)app->vertexBuffer.size);
+    printf("  Status: Ready for vertex data\n");
+
     // Print logical device information
     printf("\nLogical Device:\n");
     printf("  Device Handle: %p\n", (void*)app->logicalDevice.device);
@@ -424,6 +674,107 @@ void printDeviceInfo(ApplicationContext* app) {
 }
 
 
+void handleWindowResize(ApplicationContext* app, int width, int height) {
+    printf("=== handleWindowResize STARTED: %dx%d ===\n", width, height);
+    if (!app || width <= 0 || height <= 0) {
+        printf("Invalid parameters: app=%p, width=%d, height=%d\n", (void*)app, width, height);
+        return;
+    }
+
+    // Wait for device to be idle before recreating resources
+    printf("Waiting for device to be idle...\n");
+    vkDeviceWaitIdle(app->logicalDevice.device);
+    printf("Device is now idle\n");
+
+    // Free command buffers (they reference the old framebuffers)
+    printf("Freeing command buffers...\n");
+    if (app->commandBuffers) {
+        freeCommandBuffers(app->logicalDevice.device, app->commandPool, app->commandBuffers, app->commandBufferCount);
+        app->commandBuffers = NULL;
+        app->commandBufferCount = 0;
+    }
+    printf("Command buffers freed\n");
+
+    // Destroy framebuffers before recreating swapchain
+    printf("Destroying framebuffers...\n");
+    if (app->framebuffers) {
+        destroyFramebuffers(app->logicalDevice.device, app->framebuffers, app->framebufferCount);
+        app->framebuffers = NULL;
+        app->framebufferCount = 0;
+    }
+    printf("Framebuffers destroyed\n");
+
+    // Destroy depth resources before recreating swapchain
+    printf("Destroying depth resources...\n");
+    destroyDepthResources(app->logicalDevice.device, app->depthImage, app->depthImageMemory, app->depthImageView);
+    printf("Depth resources destroyed\n");
+
+    // Recreate swapchain with new dimensions
+    printf("Recreating swapchain...\n");
+    destroySwapchain(app->logicalDevice.device, &app->swapchain);
+    VkResult result = createSwapchain(app->logicalDevice.device, app->physicalDevice, app->surface, app->indices, &app->swapchain, app->vsyncEnabled);
+    if (result != VK_SUCCESS) {
+        printf("Failed to recreate swapchain during window resize! Error: %d\n", result);
+        app->running = false;
+        return;
+    }
+    printf("Swapchain recreated: %dx%d, format: %d\n", app->swapchain.extent.width, app->swapchain.extent.height, app->swapchain.imageFormat);
+
+    // Recreate depth resources with new swapchain extent
+    printf("Recreating depth resources...\n");
+    result = createDepthResources(
+        app->physicalDevice,
+        app->logicalDevice.device,
+        app->swapchain.extent,
+        app->depthFormat,
+        &app->depthImage,
+        &app->depthImageMemory,
+        &app->depthImageView
+    );
+    if (result != VK_SUCCESS) {
+        printf("Failed to recreate depth resources during window resize! Error: %d\n", result);
+        app->running = false;
+        return;
+    }
+    printf("Depth resources recreated: image=%p, view=%p\n", (void*)app->depthImage, (void*)app->depthImageView);
+
+    // Recreate framebuffers
+    printf("Recreating framebuffers...\n");
+    result = createFramebuffers(
+        app->logicalDevice.device,
+        &app->swapchain,
+        app->depthImageView,
+        app->renderPass,
+        &app->framebuffers,
+        &app->framebufferCount
+    );
+    if (result != VK_SUCCESS) {
+        printf("Failed to recreate framebuffers during window resize!\n");
+        app->running = false;
+        return;
+    }
+    printf("Framebuffers recreated\n");
+
+    // Reallocate command buffers
+    printf("Reallocating command buffers...\n");
+    result = allocateCommandBuffers(
+        app->logicalDevice.device,
+        app->commandPool,
+        app->framebufferCount,
+        &app->commandBuffers
+    );
+    if (result != VK_SUCCESS) {
+        printf("Failed to reallocate command buffers during window resize!\n");
+        app->running = false;
+        return;
+    }
+    app->commandBufferCount = app->framebufferCount;
+    printf("Command buffers reallocated\n");
+
+    printf("Successfully handled window resize to %dx%d\n", app->swapchain.extent.width, app->swapchain.extent.height);
+    printf("=== handleWindowResize COMPLETED ===\n");
+}
+
 void handleEvents(ApplicationContext* app) {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
@@ -434,6 +785,35 @@ void handleEvents(ApplicationContext* app) {
             case SDL_KEYDOWN:
                 if (event.key.keysym.sym == SDLK_ESCAPE) {
                     app->running = false;
+                } else if (event.key.keysym.sym == SDLK_f) {
+                    // Toggle fullscreen
+                    Uint32 flags = SDL_GetWindowFlags(app->window);
+                    bool isFullscreen = (flags & SDL_WINDOW_FULLSCREEN);
+                    printf("F key pressed - current fullscreen state: %s\n", isFullscreen ? "true" : "false");
+                    
+                    if (isFullscreen) {
+                        printf("Attempting to exit fullscreen mode\n");
+                        SDL_SetWindowFullscreen(app->window, 0);
+                        printf("Exited fullscreen mode\n");
+                    } else {
+                        printf("Attempting to enter fullscreen mode\n");
+                        SDL_SetWindowFullscreen(app->window, SDL_WINDOW_FULLSCREEN);
+                        printf("Entered fullscreen mode\n");
+                    }
+                }
+                break;
+            case SDL_WINDOWEVENT:
+                if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
+                    // Handle window resize (including fullscreen transitions)
+                    int width = event.window.data1;
+                    int height = event.window.data2;
+                    Uint32 flags = SDL_GetWindowFlags(app->window);
+                    bool isFullscreen = (flags & SDL_WINDOW_FULLSCREEN);
+                    printf("SDL_WINDOWEVENT_RESIZED received: %dx%d (fullscreen: %s)\n", 
+                           width, height, isFullscreen ? "yes" : "no");
+                    printf("About to call handleWindowResize\n");
+                    handleWindowResize(app, width, height);
+                    printf("handleWindowResize completed\n");
                 }
                 break;
         }
@@ -441,9 +821,27 @@ void handleEvents(ApplicationContext* app) {
 }
 
 void runApplication(ApplicationContext* app) {
+    app->lastTime = SDL_GetTicks() / 1000.0f;  // Initialize time
+
     while (app->running) {
+        // Calculate delta time
+        float currentTime = SDL_GetTicks() / 1000.0f;
+        float deltaTime = currentTime - app->lastTime;
+        app->lastTime = currentTime;
+
         handleEvents(app);
-        
+
+        // Update camera based on input
+        updateCamera(&app->camera, app->window, deltaTime);
+
+        // Update view matrix in uniform buffer
+        UniformBufferObject ubo;
+        ubo.model = mat4_multiply(mat4_rotate_y(45.0f * (3.14159f / 180.0f)), mat4_scale(vec3_create(0.5f, 0.5f, 0.5f)));
+        ubo.view = getCameraViewMatrix(&app->camera);
+        float aspect = (float)app->swapchain.extent.width / (float)app->swapchain.extent.height;
+        ubo.proj = mat4_perspective(60.0f * (3.14159f / 180.0f), aspect, 0.1f, 10.0f);
+        updateUniformBuffer(app->logicalDevice.device, &app->uniformBuffer, &ubo);
+
         draw_frame(app);
     }
 }
@@ -455,6 +853,21 @@ void cleanupApplication(ApplicationContext* app) {
     // Destroy graphics pipeline
     printf("\n=== Cleaning Up Graphics Pipeline ===\n");
     destroyGraphicsPipeline(app->logicalDevice.device, &app->graphicsPipeline);
+
+    // Destroy vertex buffer
+    printf("\n=== Cleaning Up Vertex Buffer ===\n");
+    destroyBuffer(app->logicalDevice.device, &app->vertexBuffer);
+
+    // Destroy uniform buffer
+    printf("\n=== Cleaning Up Uniform Buffer ===\n");
+    destroyBuffer(app->logicalDevice.device, &app->uniformBuffer);
+
+    // Destroy descriptor pool
+    printf("\n=== Cleaning Up Descriptor Pool ===\n");
+    if (app->descriptorPool != VK_NULL_HANDLE) {
+        vkDestroyDescriptorPool(app->logicalDevice.device, app->descriptorPool, NULL);
+        app->descriptorPool = VK_NULL_HANDLE;
+    }
 
     // Destroy synchronization objects
     printf("\n=== Cleaning Up Synchronization ===\n");

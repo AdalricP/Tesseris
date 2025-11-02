@@ -1,21 +1,19 @@
 #version 450
 
-// Hardcoded triangle vertices (no vertex buffer needed for now)
-vec2 positions[3] = vec2[](
-    vec2(-0.5, 0.5),   // top-left
-    vec2(0.5, 0.5),    // top-right
-    vec2(0.0, -0.5)    // bottom-center
-);
-
-vec3 colors[3] = vec3[](
-    vec3(1.0, 0.0, 0.0),  // red at top-left
-    vec3(0.0, 1.0, 0.0),  // green at top-right
-    vec3(0.0, 0.0, 1.0)   // blue at bottom
-);
+// Vertex input attributes
+layout(location = 0) in vec3 inPosition;  // vec3 position from vertex buffer
+layout(location = 1) in vec3 inColor;     // vec3 color from vertex buffer
 
 layout(location = 0) out vec3 fragColor;
 
+// MVP matrices uniform
+layout(binding = 0) uniform UniformBufferObject {
+    mat4 model;
+    mat4 view;
+    mat4 proj;
+} ubo;
+
 void main() {
-    gl_Position = vec4(positions[gl_VertexIndex], 0.0, 1.0);
-    fragColor = colors[gl_VertexIndex];
+    gl_Position = ubo.proj * ubo.view * ubo.model * vec4(inPosition, 1.0);
+    fragColor = inColor;
 }

@@ -10,6 +10,10 @@
 #include "graphics_pipeline/pipeline_layout.h"
 #include "graphics_pipeline/graphics_pipeline.h"
 #include "sync/synchronization.h"
+#include "graphics_pipeline/buffer.h"
+#include "math/matrix.h"
+#include "graphics_pipeline/buffer.h"
+#include "input/input.h"  // Temporary input system
 
 /**
  * Application context structure to hold all necessary data
@@ -47,6 +51,20 @@ typedef struct {
 
     // Frame synchronization
     FrameSync frameSync;
+
+    // Vertex buffer
+    Buffer vertexBuffer;
+
+    // Uniform buffer for MVP matrices
+    Buffer uniformBuffer;
+
+    // Descriptor pool and set for uniform buffer
+    VkDescriptorPool descriptorPool;
+    VkDescriptorSet descriptorSet;
+
+    // Temporary camera for input (to be abstracted later)
+    Camera camera;
+    float lastTime;  // For delta time calculation
 
     bool vsyncEnabled;
     bool running;
