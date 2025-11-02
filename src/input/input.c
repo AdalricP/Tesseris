@@ -56,7 +56,7 @@ void updateCamera(Camera* camera, SDL_Window* window, float deltaTime) {
         camera->position = vec3_add(camera->position, vec3_mul(right, velocity));
     if (keys[SDL_SCANCODE_SPACE])
         camera->position = vec3_add(camera->position, vec3_mul(up, velocity));
-    if (keys[SDL_SCANCODE_LSHIFT])
+    if (keys[SDL_SCANCODE_LSHIFT] || keys[SDL_SCANCODE_RSHIFT])
         camera->position = vec3_sub(camera->position, vec3_mul(up, velocity));
 }
 
