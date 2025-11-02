@@ -13,6 +13,7 @@
 #include "graphics_pipeline/buffer.h"
 #include "math/matrix.h"
 #include "graphics_pipeline/buffer.h"
+#include "model_loaders/objloader.h"  // For Mesh
 #include "input/input.h"  // Temporary input system
 
 /**
@@ -68,6 +69,11 @@ typedef struct {
 
     bool vsyncEnabled;
     bool running;
+    bool mouseCaptured;  // Whether mouse is captured for camera control
+
+    // Mesh data
+    Mesh mesh;
+    uint32_t vertexCount;
 } ApplicationContext;
 
 /**

@@ -6,7 +6,7 @@
 #include "renderpass/renderpass.h"
 #include "renderpass/framebuffer/framebuffer.h"
 #include "renderpass/commandbuffers/commandbuffers.h"
-#include "graphics_pipeline/buffer.h"
+#include "vertex_buffer/vertex_buffer.h"
 #include "vertex_buffer/vertex_buffer.h"
 #include "uniform_buffer/uniform_buffer.h"
 #include "math/vector.h"
@@ -25,6 +25,7 @@ int initializeApplication(ApplicationContext* app) {
     // Enable relative mouse mode and hide cursor for camera control
     SDL_SetRelativeMouseMode(SDL_TRUE);
     SDL_ShowCursor(SDL_DISABLE);
+    app->mouseCaptured = true;
 
     // Initialize Vulkan instance
     if (initializeVulkanInstance(app->window, &app->vulkanInstance) != 0) {
@@ -214,10 +215,16 @@ int initializeApplication(ApplicationContext* app) {
 
     // Create vertex buffer
     printf("\n=== Creating Vertex Buffer ===\n");
+    VkDeviceSize bufferSize;
+    if (app->mesh.num_vertices > 0) {
+        bufferSize = app->mesh.num_indices * sizeof(Vertex);
+    } else {
+        bufferSize = 36 * sizeof(Vertex); // Cube
+    }
     result = createVertexBuffer(
         app->logicalDevice.device,
         app->physicalDevice,
-        2048,  // Increased size for vertices with normals
+        bufferSize,
         &app->vertexBuffer
     );
     if (result != VK_SUCCESS) {
@@ -237,7 +244,14 @@ int initializeApplication(ApplicationContext* app) {
 
     // Update vertex buffer with triangle data
     printf("\n=== Updating Vertex Buffer with Triangle Data ===\n");
-    result = updateVertexBufferWithCube(app->logicalDevice.device, &app->vertexBuffer);
+    if (app->mesh.num_vertices > 0) {
+        printf("Loading model from OBJ file (%zu vertices, %zu indices)\n", app->mesh.num_vertices, app->mesh.num_indices);
+        result = updateVertexBufferWithMesh(app->logicalDevice.device, &app->vertexBuffer, &app->mesh, &app->vertexCount);
+    } else {
+        printf("Loading default cube model (36 vertices)\n");
+        result = updateVertexBufferWithCube(app->logicalDevice.device, &app->vertexBuffer);
+        app->vertexCount = 36;
+    }
     if (result != VK_SUCCESS) {
         printf("Failed to update vertex buffer with triangle data!\n");
         destroyBuffer(app->logicalDevice.device, &app->vertexBuffer);
@@ -252,7 +266,7 @@ int initializeApplication(ApplicationContext* app) {
         cleanupSDLWindow(app->window);
         return -1;
     }
-    printf("\nVertex Buffer: Loaded with triangle data\n");
+    printf("\nVertex Buffer: Loaded with data\n");
 
     // Create uniform buffer for MVP matrices
     printf("\n=== Creating Uniform Buffer ===\n");
@@ -798,7 +812,17 @@ void handleEvents(ApplicationContext* app) {
                 break;
             case SDL_KEYDOWN:
                 if (event.key.keysym.sym == SDLK_ESCAPE) {
-                    app->running = false;
+                    // Toggle mouse capture mode
+                    app->mouseCaptured = !app->mouseCaptured;
+                    if (app->mouseCaptured) {
+                        SDL_SetRelativeMouseMode(SDL_TRUE);
+                        SDL_ShowCursor(SDL_DISABLE);
+                        printf("Mouse captured for camera control\n");
+                    } else {
+                        SDL_SetRelativeMouseMode(SDL_FALSE);
+                        SDL_ShowCursor(SDL_ENABLE);
+                        printf("Mouse released - use normally\n");
+                    }
                 } else if (event.key.keysym.sym == SDLK_f) {
                     // Toggle fullscreen
                     Uint32 flags = SDL_GetWindowFlags(app->window);
@@ -814,6 +838,15 @@ void handleEvents(ApplicationContext* app) {
                         SDL_SetWindowFullscreen(app->window, SDL_WINDOW_FULLSCREEN);
                         printf("Entered fullscreen mode\n");
                     }
+                }
+                break;
+            case SDL_MOUSEBUTTONDOWN:
+                if (!app->mouseCaptured) {
+                    // Recapture mouse on click when not captured
+                    app->mouseCaptured = true;
+                    SDL_SetRelativeMouseMode(SDL_TRUE);
+                    SDL_ShowCursor(SDL_DISABLE);
+                    printf("Mouse recaptured for camera control\n");
                 }
                 break;
             case SDL_WINDOWEVENT:
@@ -845,8 +878,10 @@ void runApplication(ApplicationContext* app) {
 
         handleEvents(app);
 
-        // Update camera based on input
-        updateCamera(&app->camera, app->window, deltaTime);
+        // Update camera based on input only if mouse is captured
+        if (app->mouseCaptured) {
+            updateCamera(&app->camera, app->window, deltaTime);
+        }
 
         // Update view matrix in uniform buffer
         UniformBufferObject ubo;

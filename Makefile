@@ -38,7 +38,8 @@ SRCS := \
   $(SRC_DIR)/math/vector.c \
   $(SRC_DIR)/sync/synchronization.c \
   $(SRC_DIR)/rendering/draw_loop.c \
-  $(SRC_DIR)/input/input.c
+  $(SRC_DIR)/input/input.c \
+  $(SRC_DIR)/model_loaders/objloader.c
 
 OBJS := $(SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)
 
@@ -81,6 +82,7 @@ dirs:
 	@mkdir -p $(BUILD_DIR)/sync
 	@mkdir -p $(BUILD_DIR)/rendering
 	@mkdir -p $(BUILD_DIR)/input
+	@mkdir -p $(BUILD_DIR)/model_loaders
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | dirs
 	$(CC) -c $(CFLAGS) $< -o $@
 
@@ -89,7 +91,7 @@ $(TARGET): $(OBJS)
 
 run: $(TARGET)
 	clear
-	$(TARGET)
+	$(TARGET) $(ARGS)
 
 clean:
 	rm -rf $(BUILD_DIR)

@@ -4,6 +4,7 @@
 #include <vulkan/vulkan.h>
 #include "../graphics_pipeline/buffer.h"
 #include "../math/vector.h"
+#include "../model_loaders/objloader.h"
 
 /**
  * Vertex structure for 3D rendering
@@ -44,6 +45,22 @@ VkResult createVertexBuffer(
 VkResult updateVertexBufferWithCube(
     VkDevice device,
     Buffer* buffer
+);
+
+/**
+ * Update vertex buffer with mesh vertex data
+ * 
+ * @param device - VkDevice handle
+ * @param buffer - Vertex buffer to update
+ * @param mesh - Mesh data to load
+ * @param vertexCount - Output vertex count
+ * @return VK_SUCCESS on success, error code otherwise
+ */
+VkResult updateVertexBufferWithMesh(
+    VkDevice device,
+    Buffer* buffer,
+    Mesh* mesh,
+    uint32_t* vertexCount
 );
 
 #endif // VERTEX_BUFFER_H

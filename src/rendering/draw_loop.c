@@ -59,7 +59,7 @@ void draw_frame(ApplicationContext* app) {
     vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, 
                            app->pipelineLayouts.pipelineLayout, 0, 1, &app->descriptorSet, 0, NULL);
 
-    vkCmdDraw(cmdBuffer, 36, 1, 0, 0); // 36 vertices for cube, 1 instance
+    vkCmdDraw(cmdBuffer, app->vertexCount, 1, 0, 0); // Draw vertices
 
     vkCmdEndRenderPass(cmdBuffer);
 

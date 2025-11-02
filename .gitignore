@@ -17,3 +17,4 @@ project_outline.md
 
 # Debug files
 *.dSYM/
+*.obj

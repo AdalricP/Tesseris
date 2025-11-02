@@ -1,5 +1,7 @@
 #include "vertex_buffer.h"
+#include "../model_loaders/objloader.h"
 #include <stdio.h>
+#include <stdlib.h>
 
 VkResult createVertexBuffer(
     VkDevice device,
@@ -103,5 +105,64 @@ VkResult updateVertexBufferWithCube(
     }
 
     printf("    Vertex buffer updated with cube data\n");
+    return VK_SUCCESS;
+}
+
+VkResult updateVertexBufferWithMesh(
+    VkDevice device,
+    Buffer* buffer,
+    Mesh* mesh,
+    uint32_t* vertexCount
+) {
+    if (!device || !buffer || !mesh || !vertexCount) {
+        printf("Vertex buffer update failed: Invalid parameters\n");
+        return VK_ERROR_INITIALIZATION_FAILED;
+    }
+
+    // For now, assume mesh has positions and normals, and we use indices to create vertices
+    // Since we don't have index buffer, we duplicate vertices
+    *vertexCount = mesh->num_indices;
+
+    Vertex* vertices = (Vertex*)malloc(sizeof(Vertex) * mesh->num_indices);
+    if (!vertices) {
+        printf("Failed to allocate memory for vertices\n");
+        return VK_ERROR_OUT_OF_HOST_MEMORY;
+    }
+
+    for (size_t i = 0; i < mesh->num_indices; ++i) {
+        unsigned int idx = mesh->indices[i];
+        if (idx >= mesh->num_vertices) {
+            printf("Invalid index %u >= %zu\n", idx, mesh->num_vertices);
+            free(vertices);
+            return VK_ERROR_INITIALIZATION_FAILED;
+        }
+
+        vec3 pos = vec3_create(
+            mesh->vertices[idx * 3 + 0],
+            mesh->vertices[idx * 3 + 1],
+            mesh->vertices[idx * 3 + 2]
+        );
+        vec3 normal = vec3_create(
+            mesh->normals[idx * 3 + 0],
+            mesh->normals[idx * 3 + 1],
+            mesh->normals[idx * 3 + 2]
+        );
+        vec3 color = vec3_create(1.0f, 1.0f, 1.0f); // White color
+
+        vertices[i] = (Vertex){pos, color, normal};
+    }
+
+    printf("  Updating vertex buffer with mesh data:\n");
+    printf("    %u vertices, %zu bytes each\n", *vertexCount, sizeof(Vertex));
+    printf("    Total size: %zu bytes\n", sizeof(Vertex) * (*vertexCount));
+
+    VkResult result = updateBuffer(device, buffer, vertices, sizeof(Vertex) * (*vertexCount), 0);
+    free(vertices);
+    if (result != VK_SUCCESS) {
+        printf("    Failed to update vertex buffer!\n");
+        return result;
+    }
+
+    printf("    Vertex buffer updated with mesh data\n");
     return VK_SUCCESS;
 }
