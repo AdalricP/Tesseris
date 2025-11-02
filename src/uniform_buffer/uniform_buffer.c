@@ -41,14 +41,11 @@ VkResult updateUniformBuffer(
         return VK_ERROR_INITIALIZATION_FAILED;
     }
 
-    printf("  Updating uniform buffer with MVP matrices\n");
-
     VkResult result = updateBuffer(device, buffer, ubo, sizeof(UniformBufferObject), 0);
     if (result != VK_SUCCESS) {
         printf("    Failed to update uniform buffer!\n");
         return result;
     }
 
-    printf("    Uniform buffer updated successfully\n");
     return VK_SUCCESS;
 }

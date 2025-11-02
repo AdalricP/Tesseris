@@ -40,56 +40,56 @@ VkResult updateVertexBufferWithCube(
         return VK_ERROR_INITIALIZATION_FAILED;
     }
 
-    // Define cube vertices with 3D positions and colors
+    // Define cube vertices with 3D positions, colors, and normals
     // Cube has 8 corners, but we duplicate vertices for each face triangle
     Vertex vertices[36] = {
-        // Front face (z = 0.5)
-        {vec3_create(-0.5f, -0.5f,  0.5f), vec3_create(1.0f, 0.0f, 0.0f)},  // bottom-left
-        {vec3_create( 0.5f, -0.5f,  0.5f), vec3_create(1.0f, 0.0f, 0.0f)},  // bottom-right
-        {vec3_create( 0.5f,  0.5f,  0.5f), vec3_create(1.0f, 0.0f, 0.0f)},  // top-right
-        {vec3_create( 0.5f,  0.5f,  0.5f), vec3_create(1.0f, 0.0f, 0.0f)},  // top-right
-        {vec3_create(-0.5f,  0.5f,  0.5f), vec3_create(1.0f, 0.0f, 0.0f)},  // top-left
-        {vec3_create(-0.5f, -0.5f,  0.5f), vec3_create(1.0f, 0.0f, 0.0f)},  // bottom-left
+        // Front face (z = 0.5) - normal: (0, 0, 1)
+        {vec3_create(-0.5f, -0.5f,  0.5f), vec3_create(1.0f, 1.0f, 1.0f), vec3_create(0.0f, 0.0f, 1.0f)},  // bottom-left
+        {vec3_create( 0.5f, -0.5f,  0.5f), vec3_create(1.0f, 1.0f, 1.0f), vec3_create(0.0f, 0.0f, 1.0f)},  // bottom-right
+        {vec3_create( 0.5f,  0.5f,  0.5f), vec3_create(1.0f, 1.0f, 1.0f), vec3_create(0.0f, 0.0f, 1.0f)},  // top-right
+        {vec3_create( 0.5f,  0.5f,  0.5f), vec3_create(1.0f, 1.0f, 1.0f), vec3_create(0.0f, 0.0f, 1.0f)},  // top-right
+        {vec3_create(-0.5f,  0.5f,  0.5f), vec3_create(1.0f, 1.0f, 1.0f), vec3_create(0.0f, 0.0f, 1.0f)},  // top-left
+        {vec3_create(-0.5f, -0.5f,  0.5f), vec3_create(1.0f, 1.0f, 1.0f), vec3_create(0.0f, 0.0f, 1.0f)},  // bottom-left
 
-        // Back face (z = -0.5)
-        {vec3_create(-0.5f, -0.5f, -0.5f), vec3_create(0.0f, 1.0f, 0.0f)},  // bottom-left
-        {vec3_create( 0.5f, -0.5f, -0.5f), vec3_create(0.0f, 1.0f, 0.0f)},  // bottom-right
-        {vec3_create( 0.5f,  0.5f, -0.5f), vec3_create(0.0f, 1.0f, 0.0f)},  // top-right
-        {vec3_create( 0.5f,  0.5f, -0.5f), vec3_create(0.0f, 1.0f, 0.0f)},  // top-right
-        {vec3_create(-0.5f,  0.5f, -0.5f), vec3_create(0.0f, 1.0f, 0.0f)},  // top-left
-        {vec3_create(-0.5f, -0.5f, -0.5f), vec3_create(0.0f, 1.0f, 0.0f)},  // bottom-left
+        // Back face (z = -0.5) - normal: (0, 0, -1)
+        {vec3_create(-0.5f, -0.5f, -0.5f), vec3_create(1.0f, 1.0f, 1.0f), vec3_create(0.0f, 0.0f, -1.0f)},  // bottom-left
+        {vec3_create( 0.5f, -0.5f, -0.5f), vec3_create(1.0f, 1.0f, 1.0f), vec3_create(0.0f, 0.0f, -1.0f)},  // bottom-right
+        {vec3_create( 0.5f,  0.5f, -0.5f), vec3_create(1.0f, 1.0f, 1.0f), vec3_create(0.0f, 0.0f, -1.0f)},  // top-right
+        {vec3_create( 0.5f,  0.5f, -0.5f), vec3_create(1.0f, 1.0f, 1.0f), vec3_create(0.0f, 0.0f, -1.0f)},  // top-right
+        {vec3_create(-0.5f,  0.5f, -0.5f), vec3_create(1.0f, 1.0f, 1.0f), vec3_create(0.0f, 0.0f, -1.0f)},  // top-left
+        {vec3_create(-0.5f, -0.5f, -0.5f), vec3_create(1.0f, 1.0f, 1.0f), vec3_create(0.0f, 0.0f, -1.0f)},  // bottom-left
 
-        // Left face (x = -0.5)
-        {vec3_create(-0.5f, -0.5f, -0.5f), vec3_create(0.0f, 0.0f, 1.0f)},  // bottom-back
-        {vec3_create(-0.5f, -0.5f,  0.5f), vec3_create(0.0f, 0.0f, 1.0f)},  // bottom-front
-        {vec3_create(-0.5f,  0.5f,  0.5f), vec3_create(0.0f, 0.0f, 1.0f)},  // top-front
-        {vec3_create(-0.5f,  0.5f,  0.5f), vec3_create(0.0f, 0.0f, 1.0f)},  // top-front
-        {vec3_create(-0.5f,  0.5f, -0.5f), vec3_create(0.0f, 0.0f, 1.0f)},  // top-back
-        {vec3_create(-0.5f, -0.5f, -0.5f), vec3_create(0.0f, 0.0f, 1.0f)},  // bottom-back
+        // Left face (x = -0.5) - normal: (-1, 0, 0)
+        {vec3_create(-0.5f, -0.5f, -0.5f), vec3_create(1.0f, 1.0f, 1.0f), vec3_create(-1.0f, 0.0f, 0.0f)},  // bottom-back
+        {vec3_create(-0.5f, -0.5f,  0.5f), vec3_create(1.0f, 1.0f, 1.0f), vec3_create(-1.0f, 0.0f, 0.0f)},  // bottom-front
+        {vec3_create(-0.5f,  0.5f,  0.5f), vec3_create(1.0f, 1.0f, 1.0f), vec3_create(-1.0f, 0.0f, 0.0f)},  // top-front
+        {vec3_create(-0.5f,  0.5f,  0.5f), vec3_create(1.0f, 1.0f, 1.0f), vec3_create(-1.0f, 0.0f, 0.0f)},  // top-front
+        {vec3_create(-0.5f,  0.5f, -0.5f), vec3_create(1.0f, 1.0f, 1.0f), vec3_create(-1.0f, 0.0f, 0.0f)},  // top-back
+        {vec3_create(-0.5f, -0.5f, -0.5f), vec3_create(1.0f, 1.0f, 1.0f), vec3_create(-1.0f, 0.0f, 0.0f)},  // bottom-back
 
-        // Right face (x = 0.5)
-        {vec3_create( 0.5f, -0.5f, -0.5f), vec3_create(1.0f, 1.0f, 0.0f)},  // bottom-back
-        {vec3_create( 0.5f, -0.5f,  0.5f), vec3_create(1.0f, 1.0f, 0.0f)},  // bottom-front
-        {vec3_create( 0.5f,  0.5f,  0.5f), vec3_create(1.0f, 1.0f, 0.0f)},  // top-front
-        {vec3_create( 0.5f,  0.5f,  0.5f), vec3_create(1.0f, 1.0f, 0.0f)},  // top-front
-        {vec3_create( 0.5f,  0.5f, -0.5f), vec3_create(1.0f, 1.0f, 0.0f)},  // top-back
-        {vec3_create( 0.5f, -0.5f, -0.5f), vec3_create(1.0f, 1.0f, 0.0f)},  // bottom-back
+        // Right face (x = 0.5) - normal: (1, 0, 0)
+        {vec3_create( 0.5f, -0.5f, -0.5f), vec3_create(1.0f, 1.0f, 1.0f), vec3_create(1.0f, 0.0f, 0.0f)},  // bottom-back
+        {vec3_create( 0.5f, -0.5f,  0.5f), vec3_create(1.0f, 1.0f, 1.0f), vec3_create(1.0f, 0.0f, 0.0f)},  // bottom-front
+        {vec3_create( 0.5f,  0.5f,  0.5f), vec3_create(1.0f, 1.0f, 1.0f), vec3_create(1.0f, 0.0f, 0.0f)},  // top-front
+        {vec3_create( 0.5f,  0.5f,  0.5f), vec3_create(1.0f, 1.0f, 1.0f), vec3_create(1.0f, 0.0f, 0.0f)},  // top-front
+        {vec3_create( 0.5f,  0.5f, -0.5f), vec3_create(1.0f, 1.0f, 1.0f), vec3_create(1.0f, 0.0f, 0.0f)},  // top-back
+        {vec3_create( 0.5f, -0.5f, -0.5f), vec3_create(1.0f, 1.0f, 1.0f), vec3_create(1.0f, 0.0f, 0.0f)},  // bottom-back
 
-        // Top face (y = 0.5)
-        {vec3_create(-0.5f,  0.5f, -0.5f), vec3_create(1.0f, 0.0f, 1.0f)},  // back-left
-        {vec3_create( 0.5f,  0.5f, -0.5f), vec3_create(1.0f, 0.0f, 1.0f)},  // back-right
-        {vec3_create( 0.5f,  0.5f,  0.5f), vec3_create(1.0f, 0.0f, 1.0f)},  // front-right
-        {vec3_create( 0.5f,  0.5f,  0.5f), vec3_create(1.0f, 0.0f, 1.0f)},  // front-right
-        {vec3_create(-0.5f,  0.5f,  0.5f), vec3_create(1.0f, 0.0f, 1.0f)},  // front-left
-        {vec3_create(-0.5f,  0.5f, -0.5f), vec3_create(1.0f, 0.0f, 1.0f)},  // back-left
+        // Top face (y = 0.5) - normal: (0, 1, 0)
+        {vec3_create(-0.5f,  0.5f, -0.5f), vec3_create(1.0f, 1.0f, 1.0f), vec3_create(0.0f, 1.0f, 0.0f)},  // back-left
+        {vec3_create( 0.5f,  0.5f, -0.5f), vec3_create(1.0f, 1.0f, 1.0f), vec3_create(0.0f, 1.0f, 0.0f)},  // back-right
+        {vec3_create( 0.5f,  0.5f,  0.5f), vec3_create(1.0f, 1.0f, 1.0f), vec3_create(0.0f, 1.0f, 0.0f)},  // front-right
+        {vec3_create( 0.5f,  0.5f,  0.5f), vec3_create(1.0f, 1.0f, 1.0f), vec3_create(0.0f, 1.0f, 0.0f)},  // front-right
+        {vec3_create(-0.5f,  0.5f,  0.5f), vec3_create(1.0f, 1.0f, 1.0f), vec3_create(0.0f, 1.0f, 0.0f)},  // front-left
+        {vec3_create(-0.5f,  0.5f, -0.5f), vec3_create(1.0f, 1.0f, 1.0f), vec3_create(0.0f, 1.0f, 0.0f)},  // back-left
 
-        // Bottom face (y = -0.5)
-        {vec3_create(-0.5f, -0.5f, -0.5f), vec3_create(0.0f, 1.0f, 1.0f)},  // back-left
-        {vec3_create( 0.5f, -0.5f, -0.5f), vec3_create(0.0f, 1.0f, 1.0f)},  // back-right
-        {vec3_create( 0.5f, -0.5f,  0.5f), vec3_create(0.0f, 1.0f, 1.0f)},  // front-right
-        {vec3_create( 0.5f, -0.5f,  0.5f), vec3_create(0.0f, 1.0f, 1.0f)},  // front-right
-        {vec3_create(-0.5f, -0.5f,  0.5f), vec3_create(0.0f, 1.0f, 1.0f)},  // front-left
-        {vec3_create(-0.5f, -0.5f, -0.5f), vec3_create(0.0f, 1.0f, 1.0f)}   // back-left
+        // Bottom face (y = -0.5) - normal: (0, -1, 0)
+        {vec3_create(-0.5f, -0.5f, -0.5f), vec3_create(1.0f, 1.0f, 1.0f), vec3_create(0.0f, -1.0f, 0.0f)},  // back-left
+        {vec3_create( 0.5f, -0.5f, -0.5f), vec3_create(1.0f, 1.0f, 1.0f), vec3_create(0.0f, -1.0f, 0.0f)},  // back-right
+        {vec3_create( 0.5f, -0.5f,  0.5f), vec3_create(1.0f, 1.0f, 1.0f), vec3_create(0.0f, -1.0f, 0.0f)},  // front-right
+        {vec3_create( 0.5f, -0.5f,  0.5f), vec3_create(1.0f, 1.0f, 1.0f), vec3_create(0.0f, -1.0f, 0.0f)},  // front-right
+        {vec3_create(-0.5f, -0.5f,  0.5f), vec3_create(1.0f, 1.0f, 1.0f), vec3_create(0.0f, -1.0f, 0.0f)},  // front-left
+        {vec3_create(-0.5f, -0.5f, -0.5f), vec3_create(1.0f, 1.0f, 1.0f), vec3_create(0.0f, -1.0f, 0.0f)}   // back-left
     };
 
     printf("  Updating vertex buffer with cube data:\n");

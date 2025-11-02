@@ -9,10 +9,12 @@
  * Vertex structure for 3D rendering
  * Position: 3D coordinates (vec3)
  * Color: RGB color values (vec3)
+ * Normal: 3D normal vector (vec3)
  */
 typedef struct {
     vec3 position;  // vec3 position
     vec3 color;     // vec3 color
+    vec3 normal;    // vec3 normal
 } Vertex;
 
 /**

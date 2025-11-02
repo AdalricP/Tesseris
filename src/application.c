@@ -217,7 +217,7 @@ int initializeApplication(ApplicationContext* app) {
     result = createVertexBuffer(
         app->logicalDevice.device,
         app->physicalDevice,
-        1024,  // 1KB for now, can be expanded later
+        2048,  // Increased size for vertices with normals
         &app->vertexBuffer
     );
     if (result != VK_SUCCESS) {
@@ -292,7 +292,15 @@ int initializeApplication(ApplicationContext* app) {
     
     // Projection matrix: perspective
     float aspect = (float)app->swapchain.extent.width / (float)app->swapchain.extent.height;
-    ubo.proj = mat4_perspective(60.0f * (3.14159f / 180.0f), aspect, 0.1f, 10.0f);
+    mat4 proj = mat4_perspective(60.0f * (3.14159f / 180.0f), aspect, 0.1f, 10.0f);
+    proj.m[0] = -proj.m[0]; // Flip x-axis for Vulkan
+    proj.m[5] = -proj.m[5]; // Flip y-axis for Vulkan viewport
+    ubo.proj = proj;
+
+    // Lighting data
+    ubo.lightPos = vec3_create(2.0f, 2.0f, 2.0f);    // Light position
+    ubo.lightColor = vec3_create(1.0f, 1.0f, 1.0f);  // White light
+    ubo.viewPos = vec3_create(0.0f, 0.0f, 3.0f);     // Camera position
     
     result = updateUniformBuffer(app->logicalDevice.device, &app->uniformBuffer, &ubo);
     if (result != VK_SUCCESS) {
@@ -482,14 +490,14 @@ int initializeApplication(ApplicationContext* app) {
     config.fragShaderPath = "shaders/basic.frag.spv";
     
     // Configure vertex input for our Vertex struct
-    // Vertex struct: position (vec3, 12 bytes) + color (vec3, 12 bytes) = 24 bytes total
+    // Vertex struct: position (vec3, 12 bytes) + color (vec3, 12 bytes) + normal (vec3, 12 bytes) = 36 bytes total
     VertexBindingDescription vertexBindings[1] = {{
         .binding = 0,
-        .stride = sizeof(Vertex),  // 24 bytes per vertex
+        .stride = sizeof(Vertex),  // 36 bytes per vertex
         .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
     }};
     
-    VertexAttributeDescription vertexAttributes[2] = {
+    VertexAttributeDescription vertexAttributes[3] = {
         {
             .location = 0,
             .binding = 0,
@@ -501,13 +509,19 @@ int initializeApplication(ApplicationContext* app) {
             .binding = 0,
             .format = VK_FORMAT_R32G32B32_SFLOAT,  // vec3 for color
             .offset = offsetof(Vertex, color)       // 12 bytes offset
+        },
+        {
+            .location = 2,
+            .binding = 0,
+            .format = VK_FORMAT_R32G32B32_SFLOAT,  // vec3 for normal
+            .offset = offsetof(Vertex, normal)      // 24 bytes offset
         }
     };
     
     config.vertexBindings = vertexBindings;
     config.vertexBindingCount = 1;
     config.vertexAttributes = vertexAttributes;
-    config.vertexAttributeCount = 2;
+    config.vertexAttributeCount = 3;
     
     config.enableDepthTest = true;
     config.enableDepthWrite = true;
@@ -839,7 +853,15 @@ void runApplication(ApplicationContext* app) {
         ubo.model = mat4_multiply(mat4_rotate_y(45.0f * (3.14159f / 180.0f)), mat4_scale(vec3_create(0.5f, 0.5f, 0.5f)));
         ubo.view = getCameraViewMatrix(&app->camera);
         float aspect = (float)app->swapchain.extent.width / (float)app->swapchain.extent.height;
-        ubo.proj = mat4_perspective(60.0f * (3.14159f / 180.0f), aspect, 0.1f, 10.0f);
+        mat4 proj = mat4_perspective(60.0f * (3.14159f / 180.0f), aspect, 0.1f, 10.0f);
+        proj.m[0] = proj.m[0];
+        proj.m[5] = -proj.m[5]; // Flip y-axis for Vulkan viewport
+        ubo.proj = proj;
+
+        // Lighting data
+        ubo.lightPos = vec3_create(10.0f, 10.0f, 10.0f);    // Light position
+        ubo.lightColor = vec3_create(1.0f, 1.0f, 1.0f);  // White light
+        ubo.viewPos = app->camera.position;               // Camera position from camera struct
         updateUniformBuffer(app->logicalDevice.device, &app->uniformBuffer, &ubo);
 
         draw_frame(app);

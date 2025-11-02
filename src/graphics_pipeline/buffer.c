@@ -117,10 +117,6 @@ VkResult updateBuffer(
         return VK_ERROR_INITIALIZATION_FAILED;
     }
 
-    printf("  Updating buffer: %p\n", (void*)buffer->buffer);
-    printf("    Offset: %llu bytes\n", (unsigned long long)offset);
-    printf("    Size: %llu bytes\n", (unsigned long long)size);
-
     void* mappedData = NULL;
     VkResult result = vkMapMemory(device, buffer->memory, offset, size, 0, &mappedData);
     if (result != VK_SUCCESS) {
@@ -131,7 +127,6 @@ VkResult updateBuffer(
     memcpy(mappedData, data, size);
     vkUnmapMemory(device, buffer->memory);
     
-    printf("    Buffer updated successfully\n");
     return VK_SUCCESS;
 }
 
